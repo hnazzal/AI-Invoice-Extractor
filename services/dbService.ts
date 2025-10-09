@@ -1,8 +1,13 @@
 import type { User, Invoice, InvoiceItem } from '../types';
+import { SUPABASE_URL as configUrl, SUPABASE_ANON_KEY as configKey } from '../config';
 
 // --- Supabase Credentials ---
-const SUPABASE_URL = 'https://fllogwhyktqjxleugpuo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsbG9nd2h5a3RxanhsZXVncHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTU3MDEsImV4cCI6MjA3NTE5MTcwMX0.leKa7SJ8fsypV4Ozkr9BfVIuPmSviPpYGBpLKfPGfvw';
+const SUPABASE_URL = configUrl;
+const SUPABASE_ANON_KEY = configKey;
+
+// Export a flag to check if the service is properly configured.
+export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR_SUPABASE_URL');
+
 
 // --- API Helper ---
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
@@ -103,7 +108,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         invoice_date: invoice.invoiceDate,
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
-        source_file_base64: invoice.sourceFileBase64,
+        source_file_base_64: invoice.sourceFileBase64,
         source_file_mime_type: invoice.sourceFileMimeType,
     };
 

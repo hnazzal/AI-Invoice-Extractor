@@ -1,9 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Invoice } from '../types';
+import { API_KEY } from '../config';
 
-// FIX: Per @google/genai coding guidelines, the API key must be sourced directly
-// from `process.env.API_KEY` without any fallbacks, checks, or warnings.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Export a flag to check if the service is properly configured.
+export const isConfigured = !!API_KEY && !API_KEY.includes('YOUR_GEMINI_API_KEY');
+
+// Initialize AI only if configured.
+const ai = isConfigured ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -32,6 +35,10 @@ const responseSchema = {
 };
 
 export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: string): Promise<Invoice> => {
+  if (!ai) {
+    throw new Error("Gemini service is not configured. Please add your API_KEY to the 'config.ts' file.");
+  }
+
   try {
     const filePart = {
       inlineData: {
