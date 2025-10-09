@@ -1,16 +1,19 @@
 import type { User, Invoice, InvoiceItem } from '../types';
-import { SUPABASE_URL as configUrl, SUPABASE_ANON_KEY as configKey } from '../config';
 
 // --- Supabase Credentials ---
-const SUPABASE_URL = configUrl;
-const SUPABASE_ANON_KEY = configKey;
+// Securely read credentials from environment variables.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 // Export a flag to check if the service is properly configured.
-export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR_SUPABASE_URL');
+export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
 
 
 // --- API Helper ---
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+    if (!isConfigured) {
+        throw new Error("Supabase is not configured. Check environment variables.");
+    }
     const defaultHeaders: Record<string, string> = {
         'apikey': SUPABASE_ANON_KEY,
     };
@@ -167,6 +170,7 @@ export const updateInvoicePaymentStatus = async (token: string, invoiceId: strin
 
 export const deleteInvoiceForUser = async (token: string, invoiceDbId: string): Promise<void> => {
     // This remains the same. ON DELETE CASCADE in the DB will handle deleting the items.
+    // FIX: Changed `invoiceId` to `invoiceDbId` to match the function parameter.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceDbId}`, {
         method: 'DELETE',
         headers: {

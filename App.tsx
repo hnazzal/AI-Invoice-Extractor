@@ -12,7 +12,8 @@ import ConfigurationErrorScreen from './components/screens/ConfigurationErrorScr
 const App: React.FC = () => {
   const missingKeys: string[] = [];
   if (!dbService.isConfigured) {
-    missingKeys.push('SUPABASE_URL'); // Representative key
+    missingKeys.push('SUPABASE_URL');
+    missingKeys.push('SUPABASE_ANON_KEY');
   }
   if (!isAiConfigured) {
     missingKeys.push('API_KEY');
