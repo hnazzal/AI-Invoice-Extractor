@@ -1,0 +1,92 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import type { Invoice } from '../types';
+
+// FIX: Per @google/genai coding guidelines, the API key must be sourced directly
+// from `process.env.API_KEY` without any fallbacks, checks, or warnings.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    invoiceNumber: { type: Type.STRING, description: "The invoice identification number." },
+    vendorName: { type: Type.STRING, description: "The name of the company that issued the invoice." },
+    customerName: { type: Type.STRING, description: "The name of the customer." },
+    invoiceDate: { type: Type.STRING, description: "The date the invoice was issued (YYYY-MM-DD)." },
+    totalAmount: { type: Type.NUMBER, description: "The total amount due." },
+    items: {
+      type: Type.ARRAY,
+      description: "List of items or services in the invoice.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          description: { type: Type.STRING, description: "Description of the item or service." },
+          quantity: { type: Type.NUMBER, description: "Quantity of the item." },
+          unitPrice: { type: Type.NUMBER, description: "Price per unit of the item." },
+          total: { type: Type.NUMBER, description: "Total price for this line item." },
+        },
+        required: ["description", "quantity", "unitPrice", "total"]
+      }
+    }
+  },
+  required: ["invoiceNumber", "vendorName", "customerName", "invoiceDate", "totalAmount", "items"]
+};
+
+export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: string): Promise<Invoice> => {
+  try {
+    const filePart = {
+      inlineData: {
+        mimeType: mimeType,
+        data: fileBase64,
+      },
+    };
+
+    const textPart = {
+      text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible."
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [textPart, filePart] },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+    
+    // 1. Robustly clean and parse the JSON response from the model
+    let jsonText = response.text.trim();
+    const jsonMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[2]) {
+        jsonText = jsonMatch[2];
+    }
+    const parsedJson = JSON.parse(jsonText);
+    
+    // 2. Sanitize and map the parsed data to a well-formed Invoice object
+    const sanitizedData: Invoice = {
+      invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '',
+      vendorName: parsedJson.vendorName || '',
+      customerName: parsedJson.customerName || '',
+      invoiceDate: parsedJson.invoiceDate || '',
+      totalAmount: parsedJson.totalAmount || 0,
+      items: Array.isArray(parsedJson.items) ? parsedJson.items.map(item => ({
+        description: item.description || '',
+        quantity: item.quantity || 0,
+        unitPrice: item.unitPrice || 0,
+        total: item.total || 0,
+      })) : [],
+      // FIX: Add default paymentStatus to satisfy the Invoice type.
+      paymentStatus: 'unpaid',
+    };
+
+    // 3. Perform a final check for essential data. If even these are missing, the extraction failed.
+    if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
+        throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
+    }
+    
+    return sanitizedData;
+
+  } catch (error) {
+    console.error("Error processing invoice with Gemini API:", error);
+    throw new Error("Failed to parse or validate data from the AI service. Please try a different file.");
+  }
+};

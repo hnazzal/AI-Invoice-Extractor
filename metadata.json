@@ -1,0 +1,7 @@
+{
+  "name": "AI Invoice Extractor",
+  "description": "An intelligent application that reads PDF invoices, extracts key information using AI, and displays it in a structured format. Features user authentication and bilingual support for English and Arabic.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
