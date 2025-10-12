@@ -12,8 +12,8 @@ export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: s
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'An unknown error occurred on the server.' }));
-        // Provide a more specific error if the proxy function returns one
-        if (errorData.error === 'Gemini service is not configured on the server. VITE_API_KEY is missing.') {
+        // Provide a more specific error if the proxy function returns one, e.g., if the key is missing on the server
+        if (errorData.error?.includes("VITE_API_KEY is missing")) {
              throw new Error("The AI service is not configured correctly by the administrator.");
         }
         throw new Error(errorData.error || `Server responded with status ${response.status}`);

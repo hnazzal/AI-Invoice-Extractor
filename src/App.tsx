@@ -11,9 +11,13 @@ import ConfigurationErrorScreen from './components/screens/ConfigurationErrorScr
 const App: React.FC = () => {
   const missingKeys: string[] = [];
   if (!dbService.isConfigured) {
+    // These are the actual environment variable names the user needs to set in Netlify.
     missingKeys.push('VITE_SUPABASE_URL');
     missingKeys.push('VITE_SUPABASE_ANON_KEY');
   }
+  
+  // The client-side check for the AI API key has been removed.
+  // The key is now securely handled by the '/.netlify/functions/gemini-proxy' serverless function.
 
   if (missingKeys.length > 0) {
     return <ConfigurationErrorScreen missingKeys={missingKeys} />;
