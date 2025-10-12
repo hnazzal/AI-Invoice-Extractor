@@ -2,8 +2,8 @@ import type { User, Invoice, InvoiceItem } from '../types';
 
 // --- Supabase Credentials ---
 // Securely read credentials from environment variables injected by Vite.
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Export a flag to check if the service is properly configured.
 export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;

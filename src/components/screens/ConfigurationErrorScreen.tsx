@@ -5,6 +5,9 @@ interface ConfigurationErrorScreenProps {
 }
 
 const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ missingKeys }) => {
+  // Ensure all potential keys are displayed for clarity, even if the app only checks for some.
+  const allRequiredKeys = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_API_KEY'];
+
   return (
     <div className="flex flex-col justify-center items-center h-screen font-sans bg-slate-100 text-slate-700 p-4">
       <div className="text-center bg-red-50 p-10 rounded-lg border border-red-200 max-w-3xl w-full shadow-lg">
@@ -21,14 +24,15 @@ const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ mis
           <div>
             <h3 className="font-bold">Required Environment Variables in Netlify:</h3>
             <ul className="mt-2 list-disc list-inside space-y-1 font-mono bg-red-100 p-3 rounded text-sm">
-              {missingKeys.map(key => (
-                <li key={key}>{key}</li>
+              {allRequiredKeys.map(key => (
+                <li key={key} className={missingKeys.includes(key) ? 'text-red-700 font-bold' : ''}>
+                  {key}
+                  {key === 'VITE_API_KEY' && <span className="text-xs text-slate-600 italic"> (for the secure AI function)</span>}
+                </li>
               ))}
-              {/* Also remind the user about the AI key, which is now needed by the serverless function */}
-              <li>VITE_API_KEY</li>
             </ul>
             <p className="mt-2 text-xs">
-              <strong>Important:</strong> Vite requires environment variables to be prefixed with <code>VITE_</code> to be accessible during the build. Make sure your variable names and values are correct and not empty.
+              <strong>Important:</strong> Vite requires environment variables to be prefixed with <code>VITE_</code>. Make sure your variable names and values are correct and not empty.
                <br/>
               In Netlify, go to <strong>Site configuration &gt; Build &amp; deploy &gt; Environment</strong> to add or verify these variables.
             </p>

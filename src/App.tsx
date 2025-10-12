@@ -18,6 +18,11 @@ const App: React.FC = () => {
   
   // The client-side check for the AI API key has been removed.
   // The key is now securely handled by the '/.netlify/functions/gemini-proxy' serverless function.
+  // We add it here conditionally only for the error message to be comprehensive.
+  if (!dbService.isConfigured) {
+    missingKeys.push('VITE_API_KEY');
+  }
+
 
   if (missingKeys.length > 0) {
     return <ConfigurationErrorScreen missingKeys={missingKeys} />;
