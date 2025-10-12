@@ -13,9 +13,9 @@ const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ mis
         
         <div className="mt-6 text-start text-red-800 space-y-4">
           <p>
-            فشل تشغيل التطبيق بسبب عدم العثور على المفاتيح السرية. لنشر التطبيق بنجاح، يجب أن تبدأ أسماء متغيرات البيئة بالبادئة <code>VITE_</code>.
+            فشل تشغيل التطبيق بسبب عدم العثور على المفاتيح السرية المطلوبة.
             <br />
-            The application failed to start because it's missing secret keys. To deploy successfully, your environment variable names must be prefixed with <code>VITE_</code>.
+            The application failed to start because it's missing required secret keys. To deploy successfully, please ensure the following environment variables are correctly set in your Netlify site configuration.
           </p>
           
           <div>
@@ -26,17 +26,17 @@ const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ mis
               ))}
             </ul>
             <p className="mt-2 text-xs">
-              For example, rename <code>API_KEY</code> to <code>VITE_API_KEY</code> in your Netlify settings.
+              <strong>Important:</strong> Vite requires environment variables to be prefixed with <code>VITE_</code> to be accessible during the build. Make sure your variable names and values are correct and not empty.
                <br/>
-              In Netlify, go to <strong>Site configuration &gt; Build &amp; deploy &gt; Environment</strong> to add/edit these variables.
+              In Netlify, go to <strong>Site configuration &gt; Build &amp; deploy &gt; Environment</strong> to add or verify these variables.
             </p>
           </div>
         </div>
 
         <p className="mt-6 text-sm text-red-600">
-          After renaming the variables and redeploying, your app will be live.
+          After adding the variables and redeploying, your app will be live.
           <br />
-          بعد إعادة تسمية المتغيرات وإعادة النشر، سيعمل تطبيقك.
+          بعد إضافة المتغيرات وإعادة النشر، سيعمل تطبيقك.
         </p>
       </div>
     </div>
