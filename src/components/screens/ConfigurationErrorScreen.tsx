@@ -24,6 +24,8 @@ const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ mis
               {missingKeys.map(key => (
                 <li key={key}>{key}</li>
               ))}
+              {/* Also remind the user about the AI key, which is now needed by the serverless function */}
+              <li>VITE_API_KEY</li>
             </ul>
             <p className="mt-2 text-xs">
               <strong>Important:</strong> Vite requires environment variables to be prefixed with <code>VITE_</code> to be accessible during the build. Make sure your variable names and values are correct and not empty.

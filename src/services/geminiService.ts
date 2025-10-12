@@ -1,7 +1,10 @@
 import type { Invoice } from '../types';
 
+// The function now calls the secure Netlify function proxy.
+// It no longer uses the Gemini SDK directly on the client-side.
 export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: string): Promise<Invoice> => {
   try {
+    // The endpoint for the serverless function.
     const response = await fetch('/.netlify/functions/gemini-proxy', {
         method: 'POST',
         headers: {
