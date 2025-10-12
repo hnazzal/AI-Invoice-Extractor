@@ -8,7 +8,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(process.env.VITE_API_KEY),
       'process.env.SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
       'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
     }

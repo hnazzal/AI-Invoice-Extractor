@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Language, Screen, Invoice, Theme, Currency } from './types';
 import { translations } from './constants';
 import * as dbService from './services/dbService';
-import { isConfigured as isAiConfigured } from './services/geminiService';
 import LoginScreen from './components/screens/LoginScreen';
 import SignUpScreen from './components/screens/SignUpScreen';
 import DashboardScreen from './components/screens/DashboardScreen';
@@ -14,9 +13,6 @@ const App: React.FC = () => {
   if (!dbService.isConfigured) {
     missingKeys.push('VITE_SUPABASE_URL');
     missingKeys.push('VITE_SUPABASE_ANON_KEY');
-  }
-  if (!isAiConfigured) {
-    missingKeys.push('VITE_API_KEY');
   }
 
   if (missingKeys.length > 0) {
