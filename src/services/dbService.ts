@@ -154,9 +154,6 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
 };
 
 export const updateInvoicePaymentStatus = async (token: string, invoiceId: string, newStatus: 'paid' | 'unpaid'): Promise<void> => {
-    // By using 'return=minimal', we only perform the update and don't ask for the
-    // updated record back. This avoids the schema cache error which happens when
-    // PostgREST tries to SELECT the data after the update.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}`, {
         method: 'PATCH',
         headers: {
@@ -169,7 +166,6 @@ export const updateInvoicePaymentStatus = async (token: string, invoiceId: strin
 
 
 export const deleteInvoiceForUser = async (token: string, invoiceDbId: string): Promise<void> => {
-    // This remains the same. ON DELETE CASCADE in the DB will handle deleting the items.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceDbId}`, {
         method: 'DELETE',
         headers: {

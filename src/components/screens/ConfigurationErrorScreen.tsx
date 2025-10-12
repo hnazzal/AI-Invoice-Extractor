@@ -5,7 +5,7 @@ interface ConfigurationErrorScreenProps {
 }
 
 const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ missingKeys }) => {
-  // Ensure all potential keys are displayed for clarity, even if the app only checks for some.
+  // Always display all required keys for user clarity, highlighting which ones the app detected as missing.
   const allRequiredKeys = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_API_KEY'];
 
   return (
@@ -27,14 +27,13 @@ const ConfigurationErrorScreen: React.FC<ConfigurationErrorScreenProps> = ({ mis
               {allRequiredKeys.map(key => (
                 <li key={key} className={missingKeys.includes(key) ? 'text-red-700 font-bold' : ''}>
                   {key}
-                  {key === 'VITE_API_KEY' && <span className="text-xs text-slate-600 italic"> (for the secure AI function)</span>}
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-xs">
-              <strong>Important:</strong> Vite requires environment variables to be prefixed with <code>VITE_</code>. Make sure your variable names and values are correct and not empty.
+              <strong>Important:</strong> Vite requires environment variables intended for client-side code to be prefixed with <code>VITE_</code>. Make sure your variable names and values in the Netlify UI match the list above exactly.
                <br/>
-              In Netlify, go to <strong>Site configuration &gt; Build &amp; deploy &gt; Environment</strong> to add or verify these variables.
+              In Netlify, go to <strong>Site configuration &gt; Build &amp; deploy &gt; Environment variables</strong> to add or verify these variables.
             </p>
           </div>
         </div>

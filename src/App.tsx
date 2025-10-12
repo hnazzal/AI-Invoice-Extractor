@@ -14,12 +14,7 @@ const App: React.FC = () => {
     // These are the actual environment variable names the user needs to set in Netlify.
     missingKeys.push('VITE_SUPABASE_URL');
     missingKeys.push('VITE_SUPABASE_ANON_KEY');
-  }
-  
-  // The client-side check for the AI API key has been removed.
-  // The key is now securely handled by the '/.netlify/functions/gemini-proxy' serverless function.
-  // We add it here conditionally only for the error message to be comprehensive.
-  if (!dbService.isConfigured) {
+    // For a comprehensive error message, we inform the user that the VITE_API_KEY for the serverless function is also required.
     missingKeys.push('VITE_API_KEY');
   }
 

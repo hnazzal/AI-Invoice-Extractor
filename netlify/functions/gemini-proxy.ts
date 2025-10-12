@@ -23,6 +23,7 @@ interface Invoice {
 }
 
 // This is a serverless function, so the API key is securely accessed from environment variables on the server.
+// Netlify makes variables set in the UI available via process.env.
 const API_KEY = process.env.VITE_API_KEY;
 
 const responseSchema = {
