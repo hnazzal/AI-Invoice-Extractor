@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Language, Screen, Invoice, Theme, Currency } from './types';
 import { translations } from './constants';
 import * as dbService from './services/dbService';
+import { isDbConfigured, isAiConfigured } from './config';
 import LoginScreen from './components/screens/LoginScreen';
 import SignUpScreen from './components/screens/SignUpScreen';
 import DashboardScreen from './components/screens/DashboardScreen';
@@ -10,13 +11,11 @@ import ConfigurationErrorScreen from './components/screens/ConfigurationErrorScr
 
 const App: React.FC = () => {
   const missingKeys: string[] = [];
-  // The client only needs to check for the Supabase keys.
-  // The serverless function will handle the AI key.
-  if (!dbService.isConfigured) {
-    // These are the actual environment variable names the user needs to set in Netlify.
+  if (!isDbConfigured) {
     missingKeys.push('VITE_SUPABASE_URL');
     missingKeys.push('VITE_SUPABASE_ANON_KEY');
-    // For a comprehensive error message, we also remind the user about the VITE_API_KEY.
+  }
+  if (!isAiConfigured) {
     missingKeys.push('VITE_API_KEY');
   }
 

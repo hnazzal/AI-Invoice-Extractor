@@ -1,12 +1,8 @@
 import type { User, Invoice, InvoiceItem } from '../types';
-
-// --- Supabase Credentials ---
-// Securely read credentials from environment variables injected by Vite.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { config, isDbConfigured } from '../config';
 
 // Export a flag to check if the service is properly configured.
-export const isConfigured = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+export const isConfigured = isDbConfigured;
 
 
 // --- API Helper ---
@@ -15,7 +11,8 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
         throw new Error("Supabase is not configured. Check environment variables.");
     }
     const defaultHeaders: Record<string, string> = {
-        'apikey': SUPABASE_ANON_KEY,
+        // Use config object and non-null assertion as isConfigured check guarantees the key exists.
+        'apikey': config.supabaseAnonKey!,
     };
 
     if (options.body) {
@@ -30,7 +27,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
         },
     };
     
-    const response = await fetch(`${SUPABASE_URL}${endpoint}`, mergedOptions);
+    const response = await fetch(`${config.supabaseUrl!}${endpoint}`, mergedOptions);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
@@ -85,7 +82,7 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   totalAmount: dbInvoice.total_amount,
   paymentStatus: dbInvoice.status || 'unpaid',
   items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.source_file_base64,
+  sourceFileBase64: dbInvoice.source_file_base_64,
   sourceFileMimeType: dbInvoice.source_file_mime_type,
 });
 
@@ -154,6 +151,9 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
 };
 
 export const updateInvoicePaymentStatus = async (token: string, invoiceId: string, newStatus: 'paid' | 'unpaid'): Promise<void> => {
+    // By using 'return=minimal', we only perform the update and don't ask for the
+    // updated record back. This avoids the schema cache error which happens when
+    // PostgREST tries to SELECT the data after the update.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}`, {
         method: 'PATCH',
         headers: {
@@ -166,6 +166,7 @@ export const updateInvoicePaymentStatus = async (token: string, invoiceId: strin
 
 
 export const deleteInvoiceForUser = async (token: string, invoiceDbId: string): Promise<void> => {
+    // This remains the same. ON DELETE CASCADE in the DB will handle deleting the items.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceDbId}`, {
         method: 'DELETE',
         headers: {
