@@ -10,11 +10,13 @@ import ConfigurationErrorScreen from './components/screens/ConfigurationErrorScr
 
 const App: React.FC = () => {
   const missingKeys: string[] = [];
+  // The client only needs to check for the Supabase keys.
+  // The serverless function will handle the AI key.
   if (!dbService.isConfigured) {
     // These are the actual environment variable names the user needs to set in Netlify.
     missingKeys.push('VITE_SUPABASE_URL');
     missingKeys.push('VITE_SUPABASE_ANON_KEY');
-    // For a comprehensive error message, we inform the user that the VITE_API_KEY for the serverless function is also required.
+    // For a comprehensive error message, we also remind the user about the VITE_API_KEY.
     missingKeys.push('VITE_API_KEY');
   }
 
