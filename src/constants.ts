@@ -89,6 +89,8 @@ export const translations: AppTranslations = {
     dateFrom: 'From Date',
     dateTo: 'To Date',
     clearFilters: 'Clear Filters',
+    minAmount: 'Min Amount',
+    maxAmount: 'Max Amount',
     
     // Camera
     capture: 'Capture',
@@ -207,6 +209,8 @@ export const translations: AppTranslations = {
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
     clearFilters: 'مسح الفلاتر',
+    minAmount: 'أقل مبلغ',
+    maxAmount: 'أعلى مبلغ',
 
     // Camera
     capture: 'التقاط',

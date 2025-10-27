@@ -1,98 +1,77 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import type { Invoice } from '../types';
-import { config, isAiConfigured } from '../config';
+import { isAiConfigured } from '../config';
 
 // Export a flag to check if the service is properly configured.
 export const isConfigured = isAiConfigured;
 
-// Initialize AI only if configured, using the key from the central config.
-const ai = isConfigured ? new GoogleGenAI({ apiKey: config.apiKey! }) : null;
-
-const responseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    invoiceNumber: { type: Type.STRING, description: "The invoice identification number." },
-    vendorName: { type: Type.STRING, description: "The name of the company that issued the invoice." },
-    customerName: { type: Type.STRING, description: "The name of the customer." },
-    invoiceDate: { type: Type.STRING, description: "The date the invoice was issued (YYYY-MM-DD)." },
-    totalAmount: { type: Type.NUMBER, description: "The total amount due." },
-    items: {
-      type: Type.ARRAY,
-      description: "List of items or services in the invoice.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          description: { type: Type.STRING, description: "Description of the item or service." },
-          quantity: { type: Type.NUMBER, description: "Quantity of the item." },
-          unitPrice: { type: Type.NUMBER, description: "Price per unit of the item." },
-          total: { type: Type.NUMBER, description: "Total price for this line item." },
-        },
-        required: ["description", "quantity", "unitPrice", "total"]
-      }
-    }
-  },
-  required: ["invoiceNumber", "vendorName", "customerName", "invoiceDate", "totalAmount", "items"]
-};
-
 export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: string): Promise<Invoice> => {
-  if (!ai) {
+  if (!isConfigured) {
     throw new Error("Gemini service is not configured. Check VITE_API_KEY environment variable.");
   }
 
   try {
-    const filePart = {
-      inlineData: {
-        mimeType: mimeType,
-        data: fileBase64,
+    // Netlify functions are available under this path.
+    const response = await fetch('/.netlify/functions/gemini-proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    };
-
-    const textPart = {
-      text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible."
-    };
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [textPart, filePart] },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
+      body: JSON.stringify({ fileBase64, mimeType }),
     });
-    
-    // 1. Robustly clean and parse the JSON response from the model
-    let jsonText = response.text.trim();
-    const jsonMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch && jsonMatch[2]) {
-        jsonText = jsonMatch[2];
-    }
-    const parsedJson = JSON.parse(jsonText);
-    
-    // 2. Sanitize and map the parsed data to a well-formed Invoice object
-    const sanitizedData: Invoice = {
-      invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '',
-      vendorName: parsedJson.vendorName || '',
-      customerName: parsedJson.customerName || '',
-      invoiceDate: parsedJson.invoiceDate || '',
-      totalAmount: parsedJson.totalAmount || 0,
-      items: Array.isArray(parsedJson.items) ? parsedJson.items.map(item => ({
-        description: item.description || '',
-        quantity: item.quantity || 0,
-        unitPrice: item.unitPrice || 0,
-        total: item.total || 0,
-      })) : [],
-      paymentStatus: 'unpaid',
-    };
 
-    // 3. Perform a final check for essential data. If even these are missing, the extraction failed.
-    if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
-        throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'An unknown server error occurred.' }));
+        // Use the detailed error message from the proxy if available.
+        throw new Error(errorData.details || errorData.error || `Server responded with status: ${response.status}`);
+    }
+
+    // The proxy now returns a complete invoice object (sans id/uploader), so we can cast it directly.
+    const extractedData: Invoice = await response.json();
+    
+    return extractedData;
+
+  } catch (error: any) {
+    console.error("Error calling Gemini proxy function:", error);
+    // Re-throw the original error message, which should be informative.
+    throw new Error(error.message || "Failed to extract data. Please check the file and try again.");
+  }
+};
+
+export const getChatbotResponse = async (prompt: string, invoices: Invoice[]): Promise<string> => {
+  if (!isConfigured) {
+    throw new Error("Gemini service is not configured. Check VITE_API_KEY environment variable.");
+  }
+  try {
+    const response = await fetch('/.netlify/functions/gemini-chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Pass only the necessary data to reduce payload size
+      body: JSON.stringify({ 
+        prompt, 
+        invoicesJson: JSON.stringify(invoices.map(inv => ({
+          invoiceNumber: inv.invoiceNumber,
+          vendorName: inv.vendorName,
+          customerName: inv.customerName,
+          invoiceDate: inv.invoiceDate,
+          totalAmount: inv.totalAmount,
+          paymentStatus: inv.paymentStatus,
+          itemCount: inv.items.length,
+        }))) 
+      }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'An unknown server error occurred.' }));
+        throw new Error(errorData.details || errorData.error || `Server responded with status: ${response.status}`);
     }
     
-    return sanitizedData;
+    const data = await response.json();
+    return data.response;
 
-  } catch (error) {
-    console.error("Error processing invoice with Gemini API:", error);
-    throw new Error("Failed to parse or validate data from the AI service. Please try a different file.");
+  } catch (error: any) {
+    console.error("Error calling Gemini chat proxy function:", error);
+    throw new Error(error.message || "Failed to get chatbot response.");
   }
 };

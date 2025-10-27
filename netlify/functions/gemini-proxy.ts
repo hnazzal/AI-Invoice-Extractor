@@ -103,7 +103,7 @@ const handler: Handler = async (event: HandlerEvent) => {
         }
         const parsedJson = JSON.parse(jsonText);
 
-        const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail' | 'sourceFileBase64' | 'sourceFileMimeType'> = {
+        const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
             invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '',
             vendorName: parsedJson.vendorName || '',
             customerName: parsedJson.customerName || '',
@@ -116,6 +116,8 @@ const handler: Handler = async (event: HandlerEvent) => {
                 total: item.total || 0,
             })) : [],
             paymentStatus: 'unpaid',
+            sourceFileBase64: fileBase64,
+            sourceFileMimeType: mimeType,
         };
 
         if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
