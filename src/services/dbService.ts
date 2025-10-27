@@ -81,22 +81,41 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   invoiceDate: dbInvoice.invoice_date,
   totalAmount: dbInvoice.total_amount,
   paymentStatus: dbInvoice.status || 'unpaid',
-  items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.source_file_base_64,
-  sourceFileMimeType: dbInvoice.source_file_mime_type,
+  items: [], // Items will be fetched on demand.
+  sourceFileBase64: undefined, // File content will be fetched on demand.
+  sourceFileMimeType: dbInvoice.source_file_mime_type, // We only fetch this to know if a file exists.
 });
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
-    // Use Supabase foreign table embedding to get invoices and their items in one call.
-    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
+    // Fetch only the necessary fields for the main table view to ensure a fast and reliable login.
+    const query = '/rest/v1/invoices?select=id,invoice_number,vendor_name,customer_name,invoice_date,total_amount,status,source_file_mime_type&order=created_at.desc';
+    const data = await apiFetch(query, {
         headers: {
             'Authorization': `Bearer ${token}`,
         }
     });
-    // Map the database response to the application's Invoice type
     return data.map(mapDbInvoiceToAppInvoice);
 };
+
+export const getInvoiceItems = async (token: string, invoiceId: string): Promise<InvoiceItem[]> => {
+    const data = await apiFetch(`/rest/v1/invoice_items?invoice_id=eq.${invoiceId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        }
+    });
+    return data.map(mapDbItemToAppItem);
+};
+
+export const getInvoiceFile = async (token: string, invoiceId: string): Promise<{ source_file_base_64: string; source_file_mime_type: string; }> => {
+    const [data] = await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}&select=source_file_base_64,source_file_mime_type`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        }
+    });
+    return data;
+};
+
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
     // 1. Prepare and insert the master invoice data
@@ -151,9 +170,6 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
 };
 
 export const updateInvoicePaymentStatus = async (token: string, invoiceId: string, newStatus: 'paid' | 'unpaid'): Promise<void> => {
-    // By using 'return=minimal', we only perform the update and don't ask for the
-    // updated record back. This avoids the schema cache error which happens when
-    // PostgREST tries to SELECT the data after the update.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}`, {
         method: 'PATCH',
         headers: {
@@ -166,7 +182,6 @@ export const updateInvoicePaymentStatus = async (token: string, invoiceId: strin
 
 
 export const deleteInvoiceForUser = async (token: string, invoiceDbId: string): Promise<void> => {
-    // This remains the same. ON DELETE CASCADE in the DB will handle deleting the items.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceDbId}`, {
         method: 'DELETE',
         headers: {
