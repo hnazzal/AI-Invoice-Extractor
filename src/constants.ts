@@ -43,7 +43,6 @@ export const translations: AppTranslations = {
     loginPrompt: 'Don\'t have an account?',
     signupPrompt: 'Already have an account?',
     invalidCredentials: 'Invalid email or password.',
-    loginDataError: 'Login successful, but failed to load account data. Please try again.',
     userExists: 'Email already registered.',
     signupSuccess: 'Signup successful! Please log in.',
     signupError: 'An error occurred during sign up. Please try again.',
@@ -90,8 +89,6 @@ export const translations: AppTranslations = {
     dateFrom: 'From Date',
     dateTo: 'To Date',
     clearFilters: 'Clear Filters',
-    minAmount: 'Min Amount',
-    maxAmount: 'Max Amount',
     
     // Camera
     capture: 'Capture',
@@ -164,7 +161,6 @@ export const translations: AppTranslations = {
     loginPrompt: 'ليس لديك حساب؟',
     signupPrompt: 'هل لديك حساب بالفعل؟',
     invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
-    loginDataError: 'تم تسجيل الدخول بنجاح، ولكن فشل تحميل بيانات الحساب. يرجى المحاولة مرة أخرى.',
     userExists: 'البريد الإلكتروني مسجل بالفعل.',
     signupSuccess: 'تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول.',
     signupError: 'حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.',
@@ -211,8 +207,6 @@ export const translations: AppTranslations = {
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
     clearFilters: 'مسح الفلاتر',
-    minAmount: 'أقل مبلغ',
-    maxAmount: 'أعلى مبلغ',
 
     // Camera
     capture: 'التقاط',

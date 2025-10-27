@@ -11,12 +11,11 @@ interface InvoiceTableProps {
   onViewClick: (invoice: Invoice) => void;
   onTogglePaymentStatus: (invoiceId: string) => void;
   columnVisibility: Record<string, boolean>;
-  viewingFileId?: string | null;
 }
 
 const MIN_COLUMN_WIDTH = 80;
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility, viewingFileId }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility }) => {
   
   const formatCurrency = (amount: number) => {
       const locale = language === 'ar' ? 'ar-JO' : 'en-US';
@@ -135,17 +134,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             )}
             <button 
                 onClick={(e) => { e.stopPropagation(); onViewClick(invoice); }} 
-                disabled={!invoice.sourceFileMimeType || !!viewingFileId}
+                disabled={!invoice.sourceFileBase64}
                 className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent" 
                 title={translations.show}>
-                {viewingFileId === invoice.id ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                  </svg>
-                )}
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
             </button>
             <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title={translations.deleteInvoice}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

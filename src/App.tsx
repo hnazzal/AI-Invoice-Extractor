@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Language, Screen, Invoice, Theme, Currency } from './types';
 import { translations } from './constants';
 import * as dbService from './services/dbService';
@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
   const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem('currency') as Currency) || 'JOD');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Used for initial app load/session check, not login itself.
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -50,8 +50,10 @@ const App: React.FC = () => {
   }, [currency]);
 
 
-  const handleLogin = async (loggedInUser: User) => {
+  const handleLogin = useCallback(async (loggedInUser: User) => {
+    setIsLoading(true);
     try {
+      // Fetch invoices using the user's auth token
       const userInvoices = await dbService.getInvoicesForUser(loggedInUser.token);
       const invoicesWithUploader = userInvoices.map(invoice => ({
         ...invoice,
@@ -61,17 +63,18 @@ const App: React.FC = () => {
       setUser(loggedInUser);
       setScreen('dashboard');
     } catch (error) {
-      console.error("Failed to load user data after login:", error);
-      handleLogout(); // Ensure user state is cleared if data fetching fails
-      throw new Error('DATA_LOAD_ERROR'); // Throw a specific error for the UI to catch
+      console.error("Failed to load user data:", error);
+      // Here you might want to show an error to the user
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
   
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setUser(null);
     setScreen('login');
     setInvoices([]);
-  };
+  }, []);
 
   const t = translations[lang];
 

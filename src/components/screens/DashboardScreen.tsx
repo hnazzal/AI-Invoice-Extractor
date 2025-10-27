@@ -2,13 +2,11 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
 import * as geminiService from '../../services/geminiService';
 import * as dbService from '../../services/dbService';
-import * as XLSX from 'xlsx';
 import InvoiceTable from '../shared/InvoiceTable';
 import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
-import Chatbot from '../shared/Chatbot';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -96,15 +94,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
-
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [viewingFileId, setViewingFileId] = useState<string | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +108,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState('');
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -284,42 +276,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     }
   };
 
-  const handleViewInvoiceDetails = async (invoice: Invoice) => {
-    if (!invoice.id) return;
-    setIsLoadingDetails(true);
-    try {
-        const items = await dbService.getInvoiceItems(user.token, invoice.id);
-        const completeInvoice = { ...invoice, items };
-        setInvoiceToView(completeInvoice);
-    } catch (error) {
-        console.error("Failed to fetch invoice items:", error);
-    } finally {
-        setIsLoadingDetails(false);
-    }
-  };
-
-  const handleViewInvoiceFile = async (invoice: Invoice) => {
-    // If the file data is already part of the invoice object (e.g., a newly extracted one), use it.
+  const handleViewInvoiceFile = useCallback((invoice: Invoice) => {
     if (invoice.sourceFileBase64 && invoice.sourceFileMimeType) {
-      setInvoiceFileToView({ base64: invoice.sourceFileBase64, mimeType: invoice.sourceFileMimeType });
-      return;
+        setInvoiceFileToView({ base64: invoice.sourceFileBase64, mimeType: invoice.sourceFileMimeType });
     }
-    // Otherwise, fetch it on-demand.
-    if (!invoice.id || !invoice.sourceFileMimeType) return;
-    
-    setViewingFileId(invoice.id);
-    try {
-      const fileData = await dbService.getInvoiceFile(user.token, invoice.id);
-      if (fileData && fileData.sourceFileBase64) {
-        setInvoiceFileToView({ base64: fileData.sourceFileBase64, mimeType: fileData.sourceFileMimeType });
-      }
-    } catch (error) {
-      console.error("Failed to fetch invoice file:", error);
-    } finally {
-      setViewingFileId(null);
-    }
-  };
-
+  }, []);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(invoice => {
@@ -328,7 +289,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             invoice.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
             invoice.vendorName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.customerName.toLowerCase().includes(lowerSearchTerm) ||
-            (invoice.items && invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm)));
+            invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
 
         const invoiceDate = new Date(invoice.invoiceDate);
         const fromDate = dateFrom ? new Date(dateFrom) : null;
@@ -342,16 +303,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         const matchesStatus = statusFilter === 'all' || invoice.paymentStatus === statusFilter;
 
-        const min = minAmount ? parseFloat(minAmount) : null;
-        const max = maxAmount ? parseFloat(maxAmount) : null;
-        
-        const matchesAmount = 
-            (min === null || invoice.totalAmount >= min) &&
-            (max === null || invoice.totalAmount <= max);
-
-        return matchesSearch && matchesDate && matchesStatus && matchesAmount;
+        return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter, minAmount, maxAmount]);
+  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter]);
   
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>({
       invoiceNumber: true, invoiceDate: true, vendorName: true, customerName: true,
@@ -363,71 +317,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setDateFrom('');
     setDateTo('');
     setStatusFilter('all');
-    setMinAmount('');
-    setMaxAmount('');
   };
-  
-  const handleExportToExcel = useCallback(() => {
-    if (filteredInvoices.length === 0) {
-      return;
-    }
-
-    // Flatten the data: one row per invoice item, including key invoice details.
-    const dataToExport = filteredInvoices.flatMap(invoice => {
-        const commonData = {
-            [translations.invoiceNumber]: invoice.invoiceNumber,
-            [translations.invoiceDate]: invoice.invoiceDate,
-            [translations.vendorName]: invoice.vendorName,
-            [translations.customerName]: invoice.customerName,
-            [translations.paymentStatus]: translations[invoice.paymentStatus],
-            [translations.totalAmount]: invoice.totalAmount,
-            [translations.uploader]: invoice.uploaderEmail || '',
-        };
-        if (!invoice.items || invoice.items.length === 0) {
-            return [{
-                ...commonData,
-                [translations.description]: 'N/A',
-                [translations.quantity]: 0,
-                [translations.unitPrice]: 0,
-                [translations.total]: 0,
-            }];
-        }
-        return invoice.items.map(item => ({
-            ...commonData,
-            [translations.description]: item.description,
-            [translations.quantity]: item.quantity,
-            [translations.unitPrice]: item.unitPrice,
-            [translations.total]: item.total,
-        }));
-    });
-    
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
-
-    // Auto-fit columns for better readability
-    const columnWidths = [];
-    if (dataToExport.length > 0) {
-        const headers = Object.keys(dataToExport[0]);
-        for (const header of headers) {
-            let maxWidth = header.length;
-            for (const row of dataToExport) {
-                const cellValue = row[header];
-                if (cellValue != null) {
-                    const cellLength = String(cellValue).length;
-                    if (cellLength > maxWidth) {
-                        maxWidth = cellLength;
-                    }
-                }
-            }
-            columnWidths.push({ wch: maxWidth + 2 }); // Add padding
-        }
-        worksheet['!cols'] = columnWidths;
-    }
-
-    const today = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(workbook, `Invoices_${today}.xlsx`);
-  }, [filteredInvoices, translations]);
 
   const formatCurrency = useCallback((amount: number) => {
       const locale = lang === 'ar' ? 'ar-JO' : 'en-US';
@@ -476,7 +366,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 </div>
             )}
-            {processingError && !newlyExtractedInvoice && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
+            {processingError && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
@@ -504,16 +394,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => { setNewlyExtractedInvoice(null); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
+                        <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
                         <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
                     </div>
                 </div>
-                {processingError && <p className="mb-4 text-sm text-red-500 text-center">{processingError}</p>}
                 <InvoiceTable 
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
-                    viewingFileId={viewingFileId}
                 />
             </section>
         )}
@@ -526,20 +414,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                         className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input 
-                        type="number" 
-                        placeholder={translations.minAmount} 
-                        value={minAmount} 
-                        onChange={e => setMinAmount(e.target.value)}
-                        className="w-full sm:w-24 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
-                    <input 
-                        type="number" 
-                        placeholder={translations.maxAmount} 
-                        value={maxAmount} 
-                        onChange={e => setMaxAmount(e.target.value)}
-                        className="w-full sm:w-24 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
                     <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
                     <div className="relative" ref={colsDropdownRef}>
                         <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
@@ -557,16 +431,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                             </div>
                         )}
                     </div>
-                    <button 
-                        onClick={handleExportToExcel}
-                        disabled={filteredInvoices.length === 0}
-                        className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                           <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        {translations.exportToExcel}
-                    </button>
                     <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
                 </div>
             </div>
@@ -574,21 +438,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {invoices.length > 0 ? (
                 <InvoiceTable 
                     invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={handleViewInvoiceDetails} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
                     onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                     columnVisibility={columnVisibility}
-                    viewingFileId={viewingFileId}
                 />
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
         </section>
-
-        {isLoadingDetails && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
-            </div>
-        )}
 
         <ConfirmationModal 
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}
@@ -609,27 +466,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 fileBase64={invoiceFileToView.base64} mimeType={invoiceFileToView.mimeType}
                 translations={translations}
             />
-        )}
-        
-        <Chatbot 
-            isOpen={isChatbotOpen}
-            onClose={() => setIsChatbotOpen(false)}
-            invoices={filteredInvoices}
-            translations={translations}
-            user={user}
-        />
-
-        {!isChatbotOpen && (
-            <button
-                onClick={() => setIsChatbotOpen(true)}
-                className="fixed bottom-8 end-8 w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-full shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform duration-200 z-40 focus:outline-none focus:ring-4 focus:ring-indigo-300"
-                aria-label="Open AI Assistant"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-                    <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h1a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-                </svg>
-            </button>
         )}
     </div>
   );
