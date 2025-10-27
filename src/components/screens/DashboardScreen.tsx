@@ -102,6 +102,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [viewingFileId, setViewingFileId] = useState<string | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
@@ -283,6 +284,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     }
   };
 
+  const handleViewInvoiceDetails = async (invoice: Invoice) => {
+    if (!invoice.id) return;
+    setIsLoadingDetails(true);
+    try {
+        const items = await dbService.getInvoiceItems(user.token, invoice.id);
+        const completeInvoice = { ...invoice, items };
+        setInvoiceToView(completeInvoice);
+    } catch (error) {
+        console.error("Failed to fetch invoice items:", error);
+    } finally {
+        setIsLoadingDetails(false);
+    }
+  };
+
   const handleViewInvoiceFile = async (invoice: Invoice) => {
     // If the file data is already part of the invoice object (e.g., a newly extracted one), use it.
     if (invoice.sourceFileBase64 && invoice.sourceFileMimeType) {
@@ -300,7 +315,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       }
     } catch (error) {
       console.error("Failed to fetch invoice file:", error);
-      // Optionally, set an error state to show a message to the user
     } finally {
       setViewingFileId(null);
     }
@@ -314,7 +328,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             invoice.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
             invoice.vendorName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.customerName.toLowerCase().includes(lowerSearchTerm) ||
-            invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
+            (invoice.items && invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm)));
 
         const invoiceDate = new Date(invoice.invoiceDate);
         const fromDate = dateFrom ? new Date(dateFrom) : null;
@@ -369,7 +383,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             [translations.totalAmount]: invoice.totalAmount,
             [translations.uploader]: invoice.uploaderEmail || '',
         };
-        if (invoice.items.length === 0) {
+        if (!invoice.items || invoice.items.length === 0) {
             return [{
                 ...commonData,
                 [translations.description]: 'N/A',
@@ -560,7 +574,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {invoices.length > 0 ? (
                 <InvoiceTable 
                     invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                    onInvoiceDoubleClick={handleViewInvoiceDetails} onDeleteClick={(id) => setInvoiceToDelete(id)}
                     onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                     columnVisibility={columnVisibility}
                     viewingFileId={viewingFileId}
@@ -569,6 +583,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
         </section>
+
+        {isLoadingDetails && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
+            </div>
+        )}
 
         <ConfirmationModal 
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}
