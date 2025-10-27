@@ -103,6 +103,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [viewingFileId, setViewingFileId] = useState<string | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -282,11 +283,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     }
   };
 
-  const handleViewInvoiceFile = useCallback((invoice: Invoice) => {
+  const handleViewInvoiceFile = async (invoice: Invoice) => {
+    // If the file data is already part of the invoice object (e.g., a newly extracted one), use it.
     if (invoice.sourceFileBase64 && invoice.sourceFileMimeType) {
-        setInvoiceFileToView({ base64: invoice.sourceFileBase64, mimeType: invoice.sourceFileMimeType });
+      setInvoiceFileToView({ base64: invoice.sourceFileBase64, mimeType: invoice.sourceFileMimeType });
+      return;
     }
-  }, []);
+    // Otherwise, fetch it on-demand.
+    if (!invoice.id || !invoice.sourceFileMimeType) return;
+    
+    setViewingFileId(invoice.id);
+    try {
+      const fileData = await dbService.getInvoiceFile(user.token, invoice.id);
+      if (fileData && fileData.sourceFileBase64) {
+        setInvoiceFileToView({ base64: fileData.sourceFileBase64, mimeType: fileData.sourceFileMimeType });
+      }
+    } catch (error) {
+      console.error("Failed to fetch invoice file:", error);
+      // Optionally, set an error state to show a message to the user
+    } finally {
+      setViewingFileId(null);
+    }
+  };
+
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(invoice => {
@@ -480,6 +499,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
+                    viewingFileId={viewingFileId}
                 />
             </section>
         )}
@@ -543,6 +563,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
                     onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                     columnVisibility={columnVisibility}
+                    viewingFileId={viewingFileId}
                 />
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>

@@ -82,15 +82,14 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   totalAmount: dbInvoice.total_amount,
   paymentStatus: dbInvoice.status || 'unpaid',
   items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.source_file_base_64,
   sourceFileMimeType: dbInvoice.source_file_mime_type,
+  // sourceFileBase64 is intentionally omitted for performance. It will be fetched on demand.
 });
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
-    // Explicitly select all required columns, including the large base64 field, 
-    // to ensure they are returned by the API, as `select=*` might omit them.
-    const selectQuery = 'id,invoice_number,vendor_name,customer_name,invoice_date,total_amount,status,source_file_base_64,source_file_mime_type,invoice_items(*)';
+    // Select all columns EXCEPT the large base64 field to ensure fast initial load.
+    const selectQuery = 'id,invoice_number,vendor_name,customer_name,invoice_date,total_amount,status,source_file_mime_type,invoice_items(*)';
     const data = await apiFetch(`/rest/v1/invoices?select=${selectQuery}&order=created_at.desc`, {
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -98,6 +97,19 @@ export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
     });
     // Map the database response to the application's Invoice type
     return data.map(mapDbInvoiceToAppInvoice);
+};
+
+export const getInvoiceFile = async (token: string, invoiceId: string): Promise<{ sourceFileBase64: string, sourceFileMimeType: string }> => {
+    const data = await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}&select=source_file_base_64,source_file_mime_type`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.pgrst.object+json' // Fetch as a single object
+        }
+    });
+    return {
+        sourceFileBase64: data.source_file_base_64,
+        sourceFileMimeType: data.source_file_mime_type,
+    };
 };
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
