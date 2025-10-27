@@ -6,6 +6,7 @@ import InvoiceTable from '../shared/InvoiceTable';
 import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
+import FileViewerModal from '../shared/FileViewerModal';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -96,7 +97,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState<string | null>(null);
+  const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +156,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     }
   };
   
+  // --- Camera Logic ---
   useEffect(() => {
       let stream: MediaStream | null = null;
       const startCamera = async () => {
@@ -228,9 +230,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         });
     }
   };
+  // --- End Camera Logic ---
 
   const handleSaveInvoice = async () => {
     if (!newlyExtractedInvoice) return;
+    setProcessingError(''); // Clear previous errors.
     
     try {
         const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
@@ -238,6 +242,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         setNewlyExtractedInvoice(null);
     } catch (error) {
         console.error("Failed to save invoice:", error);
+        setProcessingError(translations.saveError);
     }
   };
 
@@ -271,42 +276,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     }
   };
 
-  const handleViewDetails = async (invoice: Invoice) => {
-    // If it's a saved invoice (has an ID) and we don't have its details yet
-    if (invoice.id && invoice.items.length === 0) {
-        if (isLoadingDetails) return;
-        setIsLoadingDetails(invoice.id);
-        try {
-            const [items, fileData] = await Promise.all([
-                dbService.getInvoiceItems(user.token, invoice.id),
-                invoice.sourceFileMimeType ? dbService.getInvoiceFile(user.token, invoice.id) : Promise.resolve(null)
-            ]);
-            setInvoiceToView({
-                ...invoice,
-                items,
-                sourceFileBase64: fileData?.source_file_base_64,
-                sourceFileMimeType: fileData?.source_file_mime_type || invoice.sourceFileMimeType,
-            });
-        } catch (error) {
-            console.error("Failed to load full invoice details:", error);
-        } finally {
-            setIsLoadingDetails(null);
-        }
-    } else {
-        // It's a newly extracted invoice (no ID), which already has all data.
-        setInvoiceToView(invoice);
+  const handleViewInvoiceFile = useCallback((invoice: Invoice) => {
+    if (invoice.sourceFileBase64 && invoice.sourceFileMimeType) {
+        setInvoiceFileToView({ base64: invoice.sourceFileBase64, mimeType: invoice.sourceFileMimeType });
     }
-  };
+  }, []);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(invoice => {
         const lowerSearchTerm = searchTerm.toLowerCase();
-        const searchItems = invoice.items || [];
         const matchesSearch = 
             invoice.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
             invoice.vendorName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.customerName.toLowerCase().includes(lowerSearchTerm) ||
-            searchItems.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
+            invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
 
         const invoiceDate = new Date(invoice.invoiceDate);
         const fromDate = dateFrom ? new Date(dateFrom) : null;
@@ -417,9 +400,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 </div>
                 <InvoiceTable 
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={handleViewDetails} onDeleteClick={() => {}} onViewClick={handleViewDetails} onTogglePaymentStatus={() => {}}
+                    onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
-                    loadingDetailsId={null}
                 />
             </section>
         )}
@@ -456,10 +438,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {invoices.length > 0 ? (
                 <InvoiceTable 
                     invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={handleViewDetails} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                    onViewClick={handleViewDetails} onTogglePaymentStatus={handleTogglePaymentStatus}
+                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                    onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                     columnVisibility={columnVisibility}
-                    loadingDetailsId={isLoadingDetails}
                 />
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
@@ -478,7 +459,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 translations={translations} currency={currency} language={lang}
             />
         )}
-
+        
+        {invoiceFileToView && (
+            <FileViewerModal 
+                isOpen={!!invoiceFileToView} onClose={() => setInvoiceFileToView(null)}
+                fileBase64={invoiceFileToView.base64} mimeType={invoiceFileToView.mimeType}
+                translations={translations}
+            />
+        )}
     </div>
   );
 };
