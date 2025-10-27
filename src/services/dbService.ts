@@ -88,8 +88,10 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
-    // Use Supabase foreign table embedding to get invoices and their items in one call.
-    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
+    // Explicitly select all required columns, including the large base64 field, 
+    // to ensure they are returned by the API, as `select=*` might omit them.
+    const selectQuery = 'id,invoice_number,vendor_name,customer_name,invoice_date,total_amount,status,source_file_base_64,source_file_mime_type,invoice_items(*)';
+    const data = await apiFetch(`/rest/v1/invoices?select=${selectQuery}&order=created_at.desc`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         }

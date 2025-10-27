@@ -443,7 +443,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 </div>
             )}
-            {processingError && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
+            {processingError && !newlyExtractedInvoice && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
@@ -471,10 +471,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
+                        <button onClick={() => { setNewlyExtractedInvoice(null); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
                         <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
                     </div>
                 </div>
+                {processingError && <p className="mb-4 text-sm text-red-500 text-center">{processingError}</p>}
                 <InvoiceTable 
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
