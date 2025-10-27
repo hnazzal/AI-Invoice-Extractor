@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User, Language, Screen, Invoice, Theme, Currency } from './types';
 import { translations } from './constants';
 import * as dbService from './services/dbService';
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   }, [currency]);
 
 
-  const handleLogin = useCallback(async (loggedInUser: User) => {
+  const handleLogin = async (loggedInUser: User) => {
     setIsLoading(true);
     try {
       // Fetch invoices using the user's auth token
@@ -68,13 +68,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [setInvoices, setUser, setScreen]);
+  };
   
-  const handleLogout = useCallback(() => {
+  const handleLogout = () => {
     setUser(null);
     setScreen('login');
     setInvoices([]);
-  }, [setUser, setScreen, setInvoices]);
+  };
 
   const t = translations[lang];
 
