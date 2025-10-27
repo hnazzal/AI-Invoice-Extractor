@@ -4,7 +4,7 @@ import * as dbService from '../../services/dbService';
 import Spinner from '../shared/Spinner';
 
 interface LoginScreenProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User) => Promise<void>;
   onSwitchToSignUp: () => void;
   translations: Translations;
 }
@@ -21,10 +21,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
     setError('');
     setIsLoading(true);
     try {
+      // Step 1: Authenticate the user
       const user = await dbService.loginUser(email, password);
-      onLogin(user);
+      
+      // Step 2: Await the full login process, which includes fetching data.
+      // The onLogin handler in App.tsx will now throw an error if data fetching fails.
+      await onLogin(user);
+      
+      // If onLogin is successful, the App component will change the screen and this
+      // component will unmount. The finally block may not run, which is acceptable.
+
     } catch (err: any) {
-      setError(translations.invalidCredentials);
+      // This catch block handles errors from both authentication and data loading.
+      if (err.message === 'DATA_LOAD_ERROR') {
+        setError(translations.loginDataError);
+      } else {
+        // Assume any other error is an authentication failure.
+        setError(translations.invalidCredentials);
+      }
     } finally {
       setIsLoading(false);
     }
