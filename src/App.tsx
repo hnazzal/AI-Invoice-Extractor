@@ -68,13 +68,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setInvoices, setUser, setScreen]);
   
   const handleLogout = useCallback(() => {
     setUser(null);
     setScreen('login');
     setInvoices([]);
-  }, []);
+  }, [setUser, setScreen, setInvoices]);
 
   const t = translations[lang];
 
