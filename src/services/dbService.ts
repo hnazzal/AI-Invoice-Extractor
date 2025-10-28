@@ -99,8 +99,13 @@ export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
 };
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
-    // 1. Prepare and insert the master invoice data
+    // 1. Generate a UUID on the client-side. This is more robust as it avoids
+    //    relying on `return=representation` which can be problematic with RLS.
+    const newInvoiceId = crypto.randomUUID();
+
+    // 2. Prepare and insert the master invoice data, including the client-generated ID.
     const masterInvoicePayload = {
+        id: newInvoiceId, // Provide the ID for the new record
         user_id: user.id,
         invoice_number: invoice.invoiceNumber,
         vendor_name: invoice.vendorName,
@@ -112,26 +117,17 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         source_file_mime_type: invoice.sourceFileMimeType,
     };
 
-    // Correctly insert a single record and select only its ID. PostgREST returns a single
-    // object for a single-row insert, not an array. Moving `select=id` to the query
-    // string is the correct approach and avoids RLS/data size issues with returning the full row.
-    const savedMasterInvoice = await apiFetch('/rest/v1/invoices?select=id', {
+    // Post the master invoice record. `return=minimal` is efficient and avoids RLS select issues.
+    await apiFetch('/rest/v1/invoices', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${user.token}`,
-            'Prefer': 'return=representation'
+            'Prefer': 'return=minimal'
         },
         body: JSON.stringify(masterInvoicePayload),
     });
 
-    // Add a robust check in case RLS policies prevent the SELECT from returning the ID.
-    if (!savedMasterInvoice?.id) {
-        throw new Error('Failed to retrieve invoice ID after saving. This may be due to database permissions (RLS).');
-    }
-
-    const newInvoiceId = savedMasterInvoice.id;
-
-    // 2. Prepare and bulk insert the invoice items
+    // 3. Prepare and bulk insert the invoice items using the same client-generated ID.
     if (invoice.items && invoice.items.length > 0) {
         const itemsPayload = invoice.items.map(item => ({
             invoice_id: newInvoiceId,
@@ -150,7 +146,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         });
     }
 
-    // 3. Return the complete invoice object as it should exist in the app state
+    // 4. Return the complete invoice object as it should exist in the app state
     return {
         ...invoice,
         id: newInvoiceId,

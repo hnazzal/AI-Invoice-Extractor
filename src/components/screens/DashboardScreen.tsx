@@ -7,6 +7,7 @@ import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
+import Spinner from '../shared/Spinner';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -87,6 +88,7 @@ type ColumnKey = typeof ALL_COLUMNS[number];
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, invoices, setInvoices, currency, lang }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [processingError, setProcessingError] = useState('');
   const [newlyExtractedInvoice, setNewlyExtractedInvoice] = useState<Invoice | null>(null);
   
@@ -234,7 +236,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
   const handleSaveInvoice = async () => {
     if (!newlyExtractedInvoice) return;
-    setProcessingError(''); // Clear previous errors.
+    setIsSaving(true);
+    setProcessingError('');
     
     try {
         const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
@@ -243,6 +246,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     } catch (error) {
         console.error("Failed to save invoice:", error);
         setProcessingError(translations.saveError);
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -366,7 +371,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 </div>
             )}
-            {processingError && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
+            {processingError && !newlyExtractedInvoice && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
@@ -394,10 +399,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
-                        <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
+                        <button onClick={() => { setNewlyExtractedInvoice(null); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
+                        <button 
+                            onClick={handleSaveInvoice}
+                            disabled={isSaving}
+                            className="px-4 py-2 w-28 flex justify-center items-center rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed"
+                        >
+                            {isSaving ? <Spinner /> : translations.saveInvoice}
+                        </button>
                     </div>
                 </div>
+                {processingError && <p className="mb-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
                 <InvoiceTable 
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
