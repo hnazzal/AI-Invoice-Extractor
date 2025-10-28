@@ -27,8 +27,8 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
   
   const AppLogo = () => (
     <div className="flex items-center">
-        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center">
-            <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center">
+            <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
         </div>
@@ -39,9 +39,9 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
 
   if (!user) {
     return (
-      <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-sm">
+      <header className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-20">
+              <div className="flex items-center justify-between h-24">
                     <AppLogo />
               </div>
           </div>
@@ -50,9 +50,9 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
   }
 
   return (
-    <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm border-b border-slate-200 dark:border-slate-700">
+    <header className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-700/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-24">
           <div className="flex items-center">
              <AppLogo />
           </div>

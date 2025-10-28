@@ -31,7 +31,7 @@ export const translations: AppTranslations = {
     loggingIn: 'Logging in...',
     signup: 'Create an account',
     signupTitle: 'Create an Account',
-    signupSubtitle: 'Join us! It only takes a minute.',
+    signupSubtitle: 'Harness the power of AI to streamline your invoice processing.',
     signingUp: 'Signing up...',
     logout: 'Logout',
     email: 'Email',
@@ -63,7 +63,7 @@ export const translations: AppTranslations = {
     noInvoices: 'No purchase invoices yet. Upload one to get started.',
     newlyExtractedInvoice: 'Newly Extracted Invoice',
     savedInvoices: 'Purchase Invoices',
-    saveInvoice: 'Save Invoice',
+    saveInvoice: 'Save\nInvoice',
     saving: 'Saving...',
     invoiceSaved: 'Invoice data saved successfully!',
     saveError: 'Failed to save invoice: ',
@@ -89,7 +89,17 @@ export const translations: AppTranslations = {
     dateFrom: 'From Date',
     dateTo: 'To Date',
     clearFilters: 'Clear Filters',
+    amountFrom: 'Amount From',
+    amountTo: 'Amount To',
+    tableView: 'Table View',
+    gridView: 'Grid View',
     
+    // Chatbot
+    chatWithAI: 'Chat with AI',
+    askAnything: 'Ask anything about your invoices...',
+    sendMessage: 'Send',
+    typeYourMessage: 'Type your message...',
+
     // Camera
     capture: 'Capture',
     retake: 'Retake',
@@ -149,7 +159,7 @@ export const translations: AppTranslations = {
     loggingIn: 'جارِ تسجيل الدخول...',
     signup: 'أنشئ حساباً',
     signupTitle: 'إنشاء حساب جديد',
-    signupSubtitle: 'انضم إلينا! الأمر لا يستغرق سوى دقيقة.',
+    signupSubtitle: 'استخدم قوة الذكاء الاصطناعي لتبسيط معالجة فواتيرك.',
     signingUp: 'جارِ إنشاء الحساب...',
     logout: 'تسجيل الخروج',
     email: 'البريد الإلكتروني',
@@ -181,7 +191,7 @@ export const translations: AppTranslations = {
     noInvoices: 'لا توجد فواتير مشتريات حتى الآن. قم برفع فاتورة للبدء.',
     newlyExtractedInvoice: 'فاتورة مستخرجة حديثاً',
     savedInvoices: 'فواتير المشتريات',
-    saveInvoice: 'حفظ الفاتورة',
+    saveInvoice: 'حفظ\nالفاتورة',
     saving: 'جارِ الحفظ...',
     invoiceSaved: 'تم حفظ بيانات الفاتورة بنجاح!',
     saveError: 'فشل حفظ الفاتورة: ',
@@ -207,6 +217,16 @@ export const translations: AppTranslations = {
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
     clearFilters: 'مسح الفلاتر',
+    amountFrom: 'المبلغ من',
+    amountTo: 'المبلغ إلى',
+    tableView: 'عرض جدول',
+    gridView: 'عرض شبكي',
+    
+    // Chatbot
+    chatWithAI: 'الدردشة مع الذكاء الاصطناعي',
+    askAnything: 'اسأل أي شيء عن فواتيرك...',
+    sendMessage: 'إرسال',
+    typeYourMessage: 'اكتب رسالتك...',
 
     // Camera
     capture: 'التقاط',

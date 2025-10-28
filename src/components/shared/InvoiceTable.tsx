@@ -172,7 +172,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />
           ))}
         </colgroup>
-        <thead className="bg-slate-50 dark:bg-slate-700/50">
+        <thead className="bg-slate-100 dark:bg-gray-800/60">
           <tr>
             {visibleColumns.map(col => (
                <th 
@@ -192,12 +192,12 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+        <tbody className="bg-white dark:bg-gray-800/40 divide-y divide-slate-200 dark:divide-slate-700">
           {invoices.map((invoice, index) => (
             <tr 
               key={invoice.id || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
-              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 even:bg-slate-50/50 dark:even:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50`}
+              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 even:bg-slate-50/50 dark:even:bg-gray-800/20 hover:bg-slate-100/50 dark:hover:bg-slate-700/50`}
             >
               {visibleColumns.map(col => (
                 <td key={col.key} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 text-${col.align}`}>
@@ -207,7 +207,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700/50 font-semibold">
+        <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-gray-800/60 font-semibold">
           <tr>
              {summaryColSpan > 0 && (
                 <td colSpan={summaryColSpan} className="px-6 py-4 text-start text-sm text-slate-700 dark:text-slate-200">

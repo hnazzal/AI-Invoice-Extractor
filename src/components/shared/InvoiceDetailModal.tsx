@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Invoice, Translations, Currency, Language } from '../../types';
 
@@ -33,7 +32,7 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ isOpen, onClose
         aria-labelledby="invoice-details-title"
     >
       <div 
-        className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full m-4 transform transition-all" 
+        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full m-4 transform transition-all" 
         onClick={e => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
@@ -82,9 +81,9 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ isOpen, onClose
                     <th scope="col" className="px-6 py-3 text-end text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.total}</th>
                 </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-slate-200 dark:divide-slate-700">
                 {invoice.items.map((item, index) => (
-                    <tr key={index} className="even:bg-slate-50/50 dark:even:bg-slate-800/50">
+                    <tr key={index} className="even:bg-slate-50/50 dark:even:bg-gray-800/50">
                     <td className="px-6 py-4 whitespace-normal text-sm text-slate-800 dark:text-slate-200">{item.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-end text-slate-500 dark:text-slate-400">{item.quantity}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-end text-slate-500 dark:text-slate-400">{formatCurrency(item.unitPrice)}</td>
