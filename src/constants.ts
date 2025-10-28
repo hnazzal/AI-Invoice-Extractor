@@ -31,7 +31,7 @@ export const translations: AppTranslations = {
     loggingIn: 'Logging in...',
     signup: 'Create an account',
     signupTitle: 'Create an Account',
-    signupSubtitle: 'Harness the power of AI to streamline your invoice processing.',
+    signupSubtitle: 'Join us! It only takes a minute.',
     signingUp: 'Signing up...',
     logout: 'Logout',
     email: 'Email',
@@ -88,18 +88,10 @@ export const translations: AppTranslations = {
     searchPlaceholder: 'Search by number, vendor, customer, or item...',
     dateFrom: 'From Date',
     dateTo: 'To Date',
+    amountFrom: 'From Amount',
+    amountTo: 'To Amount',
     clearFilters: 'Clear Filters',
-    amountFrom: 'Amount From',
-    amountTo: 'Amount To',
-    tableView: 'Table View',
-    gridView: 'Grid View',
     
-    // Chatbot
-    chatWithAI: 'Chat with AI',
-    askAnything: 'Ask anything about your invoices...',
-    sendMessage: 'Send',
-    typeYourMessage: 'Type your message...',
-
     // Camera
     capture: 'Capture',
     retake: 'Retake',
@@ -118,6 +110,15 @@ export const translations: AppTranslations = {
     paymentStatus: 'Payment Status',
     filterByStatus: 'Filter by Status',
     all: 'All',
+
+    // View Modes
+    tableView: 'Table',
+    gridView: 'Grid',
+
+    // ChatBot
+    chatWithAI: 'AI Assistant',
+    chatHeader: 'AI Assistant',
+    chatPlaceholder: 'Ask a question...',
 
 
     // Invoice Table Headers
@@ -159,7 +160,7 @@ export const translations: AppTranslations = {
     loggingIn: 'جارِ تسجيل الدخول...',
     signup: 'أنشئ حساباً',
     signupTitle: 'إنشاء حساب جديد',
-    signupSubtitle: 'استخدم قوة الذكاء الاصطناعي لتبسيط معالجة فواتيرك.',
+    signupSubtitle: 'انضم إلينا! الأمر لا يستغرق سوى دقيقة.',
     signingUp: 'جارِ إنشاء الحساب...',
     logout: 'تسجيل الخروج',
     email: 'البريد الإلكتروني',
@@ -216,17 +217,9 @@ export const translations: AppTranslations = {
     searchPlaceholder: 'ابحث بالرقم، البائع، العميل، أو البند...',
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
+    amountFrom: 'من مبلغ',
+    amountTo: 'إلى مبلغ',
     clearFilters: 'مسح الفلاتر',
-    amountFrom: 'المبلغ من',
-    amountTo: 'المبلغ إلى',
-    tableView: 'عرض جدول',
-    gridView: 'عرض شبكي',
-    
-    // Chatbot
-    chatWithAI: 'الدردشة مع الذكاء الاصطناعي',
-    askAnything: 'اسأل أي شيء عن فواتيرك...',
-    sendMessage: 'إرسال',
-    typeYourMessage: 'اكتب رسالتك...',
 
     // Camera
     capture: 'التقاط',
@@ -247,6 +240,14 @@ export const translations: AppTranslations = {
     filterByStatus: 'تصفية حسب الحالة',
     all: 'الكل',
 
+    // View Modes
+    tableView: 'جدول',
+    gridView: 'شبكة',
+
+    // ChatBot
+    chatWithAI: 'المساعد الذكي',
+    chatHeader: 'المساعد الذكي',
+    chatPlaceholder: 'اطرح سؤالاً...',
 
     // Invoice Table Headers
     invoiceNumber: 'رقم الفاتورة',

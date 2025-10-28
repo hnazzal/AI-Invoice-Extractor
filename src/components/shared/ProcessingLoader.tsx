@@ -25,7 +25,7 @@ const ProcessingLoader: React.FC<ProcessingLoaderProps> = ({ translations }) => 
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center p-12 bg-white/50 dark:bg-gray-800/30 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 min-h-[300px]">
+    <div className="flex flex-col items-center justify-center p-12 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 min-h-[300px]">
       <style>{`
         .scanner-light {
           animation: scan 3s ease-in-out infinite;

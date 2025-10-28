@@ -15,7 +15,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-start">
             <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10">
                 <svg className="h-6 w-6 text-red-600 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

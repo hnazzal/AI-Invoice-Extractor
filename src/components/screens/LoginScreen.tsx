@@ -48,7 +48,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={translations.emailPlaceholder}
                 required
-                className="mt-1 block w-full px-4 py-3 bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="mt-1 block w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
             <div>
@@ -60,7 +60,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={translations.passwordPlaceholder}
                 required
-                className="mt-1 block w-full px-4 py-3 bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="mt-1 block w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
             <div className="flex items-center">
@@ -90,28 +90,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
           </p>
         </div>
       </div>
-      <div className="hidden md:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-indigo-600 to-sky-500 lg:col-span-3 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-          <defs>
-            <pattern id="pattern-circles" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse" >
-              <circle cx="20" cy="20" r="1" fill="white" fillOpacity="0.1"/>
-            </pattern>
-          </defs>
-          <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern-circles)"/>
-        </svg>
-
-        <div className="relative z-10 flex flex-col items-center">
-            <div className="w-48 h-48 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-8 border border-white/30 shadow-lg">
-                <svg className="w-28 h-28 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                </svg>
-            </div>
-            <h2 className="text-4xl font-bold text-white text-center shadow-sm">{translations.appName}</h2>
-            <p className="text-white/80 mt-4 max-w-sm text-center text-lg">
-                {translations.signupSubtitle}
-            </p>
+      <div className="hidden md:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-indigo-600 to-sky-500 lg:col-span-3">
+        <div className="w-48 h-48 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-8">
+            <svg className="w-28 h-28 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
         </div>
+        <h2 className="text-4xl font-bold text-white text-center">{translations.appName}</h2>
+        <p className="text-white/80 mt-2 max-w-sm text-center">
+            {translations.signupSubtitle}
+        </p>
       </div>
     </div>
   );
