@@ -141,6 +141,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${user.token}`,
+                'Prefer': 'return=minimal' // Ensures the insert doesn't fail due to RLS select policies.
             },
             body: JSON.stringify(itemsPayload),
         });
