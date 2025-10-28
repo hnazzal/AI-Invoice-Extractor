@@ -150,6 +150,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fix layout shift when chatbot is open in RTL mode
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    if (isChatbotOpen) {
+      const originalOverflowX = htmlElement.style.overflowX;
+      htmlElement.style.overflowX = 'hidden';
+
+      return () => {
+        htmlElement.style.overflowX = originalOverflowX;
+      };
+    }
+  }, [isChatbotOpen]);
+
   const processFile = async (file: File) => {
     setIsProcessing(true);
     setProcessingError('');
