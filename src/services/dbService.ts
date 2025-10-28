@@ -112,7 +112,10 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         source_file_mime_type: invoice.sourceFileMimeType,
     };
 
-    const [savedMasterInvoice] = await apiFetch('/rest/v1/invoices', {
+    // Correctly insert a single record and select only its ID. PostgREST returns a single
+    // object for a single-row insert, not an array. Moving `select=id` to the query
+    // string is the correct approach and avoids RLS/data size issues with returning the full row.
+    const savedMasterInvoice = await apiFetch('/rest/v1/invoices?select=id', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -120,6 +123,11 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         },
         body: JSON.stringify(masterInvoicePayload),
     });
+
+    // Add a robust check in case RLS policies prevent the SELECT from returning the ID.
+    if (!savedMasterInvoice?.id) {
+        throw new Error('Failed to retrieve invoice ID after saving. This may be due to database permissions (RLS).');
+    }
 
     const newInvoiceId = savedMasterInvoice.id;
 
