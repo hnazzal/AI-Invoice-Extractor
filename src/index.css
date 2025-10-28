@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: linear-gradient(300deg, theme(colors.sky.100), theme(colors.indigo.100), theme(colors.violet.100));
+    background-size: 400% 400%;
+    animation: background-pan 15s ease infinite;
+  }
+  
+  .dark body {
+    background: linear-gradient(300deg, theme(colors.slate.900), theme(colors.indigo.950), theme(colors.slate.900));
+    background-size: 400% 400%;
+    animation: background-pan 15s ease infinite;
+  }
+}
+
+/* Custom Scrollbar for a modern look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.4); /* indigo-400 with opacity */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6); /* indigo-500 with opacity */
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.5);
+}
