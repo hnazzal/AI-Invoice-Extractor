@@ -1,3 +1,16 @@
-// This file now acts as a simple entry point to the main application code
-// located in the /src directory, resolving any ambiguity for the build tool.
-import './src/index.tsx';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './src/App';
+import './src/index.css';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
