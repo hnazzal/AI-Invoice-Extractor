@@ -9,7 +9,6 @@ import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
 import Spinner from '../shared/Spinner';
-import Chatbot from '../shared/Chatbot';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -128,8 +127,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -542,25 +539,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 translations={translations}
             />
         )}
-        
-        <button
-            onClick={() => setIsChatbotOpen(true)}
-            className="fixed bottom-6 end-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800"
-            aria-label={translations.aiAssistant}
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.839 8.839 0 01-4.082-.973l-.998.998a1 1 0 01-1.414 0l-1.293-1.293a1 1 0 010-1.414l.998-.998A8.839 8.839 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.646 4.646a.5.5 0 01.708 0l2 2a.5.5 0 010 .708l-2 2a.5.5 0 01-.708-.708L6.293 7 4.646 5.354a.5.5 0 010-.708zm6.708 0a.5.5 0 01.708 0l2 2a.5.5 0 010 .708l-2 2a.5.5 0 01-.708-.708L12.293 7l-1.647-1.646a.5.5 0 010-.708z" clipRule="evenodd" />
-            </svg>
-        </button>
-        
-        <Chatbot 
-            isOpen={isChatbotOpen}
-            onClose={() => setIsChatbotOpen(false)}
-            invoices={filteredInvoices}
-            translations={translations}
-            currency={currency}
-            lang={lang}
-        />
     </div>
   );
 };

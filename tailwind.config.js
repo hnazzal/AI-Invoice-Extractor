@@ -20,21 +20,11 @@ export default {
           '0%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
           '100%': { backgroundPosition: '0% 50%' },
-        },
-        'slide-in-from-right': {
-          '0%': { transform: 'translateX(100%)' },
-          '100%': { transform: 'translateX(0)' },
-        },
-        'slide-out-to-right': {
-            '0%': { transform: 'translateX(0)' },
-            '100%': { transform: 'translateX(100%)' },
-        },
+        }
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
         'background-pan': 'background-pan 15s ease infinite',
-        'slide-in-from-right': 'slide-in-from-right 0.3s ease-out forwards',
-        'slide-out-to-right': 'slide-out-to-right 0.3s ease-in forwards',
       }
     },
   },
