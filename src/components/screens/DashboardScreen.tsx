@@ -3,11 +3,13 @@ import type { User, Invoice, Translations, Currency, Language } from '../../type
 import * as geminiService from '../../services/geminiService';
 import * as dbService from '../../services/dbService';
 import InvoiceTable from '../shared/InvoiceTable';
+import InvoiceGrid from '../shared/InvoiceGrid';
 import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
 import Spinner from '../shared/Spinner';
+import Chatbot from '../shared/Chatbot';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -19,12 +21,13 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const SummaryCard = ({ title, value, icon, gradient }) => (
-  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-transform transform hover:scale-105 duration-300 shadow-lg ${gradient}`}>
-    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10">{icon}</div>
+  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-all transform hover:scale-105 duration-300 shadow-lg group ${gradient}`}>
+    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-125">{icon}</div>
     <div className="relative z-10">
       <p className="text-sm font-medium uppercase opacity-80">{title}</p>
       <p className="text-4xl font-bold mt-2">{value}</p>
     </div>
+    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
   </div>
 );
 
@@ -65,12 +68,33 @@ const UploadOptionCard = ({ icon, title, subtitle, onClick }) => (
         onClick={onClick}
         className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group"
     >
-        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
+        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:scale-110">
             {icon}
         </div>
         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
     </div>
+);
+
+const ViewModeToggle = ({ value, onChange, translations }: { value: 'list' | 'grid', onChange: (mode: 'list' | 'grid') => void, translations: Translations }) => (
+  <div className="flex items-center rounded-lg bg-slate-200 dark:bg-slate-900/50 p-1">
+    <button 
+      onClick={() => onChange('list')}
+      className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${value === 'list' ? 'bg-white dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+      aria-pressed={value === 'list'}
+      title={translations.listView}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+    </button>
+    <button 
+      onClick={() => onChange('grid')}
+      className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${value === 'grid' ? 'bg-white dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+      aria-pressed={value === 'grid'}
+      title={translations.gridView}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+    </button>
+  </div>
 );
 
 
@@ -96,12 +120,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -308,9 +337,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         const matchesStatus = statusFilter === 'all' || invoice.paymentStatus === statusFilter;
 
-        return matchesSearch && matchesDate && matchesStatus;
+        const min = minAmount ? parseFloat(minAmount) : -Infinity;
+        const max = maxAmount ? parseFloat(maxAmount) : Infinity;
+        const matchesAmount = invoice.totalAmount >= min && invoice.totalAmount <= max;
+
+        return matchesSearch && matchesDate && matchesStatus && matchesAmount;
     });
-  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter]);
+  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter, minAmount, maxAmount]);
   
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>({
       invoiceNumber: true, invoiceDate: true, vendorName: true, customerName: true,
@@ -322,6 +355,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setDateFrom('');
     setDateTo('');
     setStatusFilter('all');
+    setMinAmount('');
+    setMaxAmount('');
   };
 
   const formatCurrency = useCallback((amount: number) => {
@@ -344,9 +379,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
 
-        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
+        <section className="p-6 glass-pane">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
 
             {isProcessing ? (
                 <ProcessingLoader translations={translations} />
@@ -395,7 +430,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         )}
 
         {newlyExtractedInvoice && !isProcessing && (
-            <section className="p-6 bg-green-50/50 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
+            <section className="p-6 bg-green-500/10 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-500/20 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
@@ -410,30 +445,28 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     </div>
                 </div>
                 {processingError && <p className="mb-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
-                <InvoiceTable 
-                    invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
-                    columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
-                />
+                <div className="overflow-hidden rounded-xl border border-green-500/20">
+                  <InvoiceTable 
+                      invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
+                      onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
+                      columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
+                  />
+                </div>
             </section>
         )}
 
-        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
+        <section className="p-6 glass-pane">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                 <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
-                <div className="flex flex-wrap items-center gap-4">
-                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
+                <div className="flex items-center gap-4">
+                  {viewMode === 'list' && (
                     <div className="relative" ref={colsDropdownRef}>
                         <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
                             {translations.columns}
                         </button>
                         {isColsDropdownOpen && (
-                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 z-20 p-2">
+                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md ring-1 ring-black ring-opacity-5 z-20 p-2">
                                 {ALL_COLUMNS.filter(key => key !== 'actions').map(colKey => (
                                     <label key={colKey} className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md cursor-pointer">
                                         <input type="checkbox" checked={columnVisibility[colKey]} onChange={() => setColumnVisibility(prev => ({...prev, [colKey]: !prev[colKey]}))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
@@ -443,17 +476,50 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                             </div>
                         )}
                     </div>
-                    <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
+                  )}
+                  <ViewModeToggle value={viewMode} onChange={setViewMode} translations={translations} />
                 </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-auto flex-grow px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input
+                        type="number"
+                        placeholder={translations.minAmount}
+                        value={minAmount}
+                        onChange={e => setMinAmount(e.target.value)}
+                        className="w-full sm:w-28 px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        aria-label={translations.minAmount}
+                    />
+                    <input
+                        type="number"
+                        placeholder={translations.maxAmount}
+                        value={maxAmount}
+                        onChange={e => setMaxAmount(e.target.value)}
+                        className="w-full sm:w-28 px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        aria-label={translations.maxAmount}
+                    />
+                    <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
+                    <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
             </div>
             
             {invoices.length > 0 ? (
-                <InvoiceTable 
-                    invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                    onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
-                    columnVisibility={columnVisibility}
-                />
+                viewMode === 'list' ? (
+                  <InvoiceTable 
+                      invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                      onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                      onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
+                      columnVisibility={columnVisibility}
+                  />
+                ) : (
+                  <InvoiceGrid
+                      invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                      onInvoiceClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                      onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
+                  />
+                )
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
@@ -479,6 +545,25 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 translations={translations}
             />
         )}
+        
+        <button
+            onClick={() => setIsChatbotOpen(true)}
+            className="fixed bottom-6 end-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800 animate-float"
+            aria-label={translations.aiAssistant}
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.839 8.839 0 01-4.082-.973l-.998.998a1 1 0 01-1.414 0l-1.293-1.293a1 1 0 010-1.414l.998-.998A8.839 8.839 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.646 4.646a.5.5 0 01.708 0l2 2a.5.5 0 010 .708l-2 2a.5.5 0 01-.708-.708L6.293 7 4.646 5.354a.5.5 0 010-.708zm6.708 0a.5.5 0 01.708 0l2 2a.5.5 0 010 .708l-2 2a.5.5 0 01-.708-.708L12.293 7l-1.647-1.646a.5.5 0 010-.708z" clipRule="evenodd" />
+            </svg>
+        </button>
+        
+        <Chatbot 
+            isOpen={isChatbotOpen}
+            onClose={() => setIsChatbotOpen(false)}
+            invoices={filteredInvoices}
+            translations={translations}
+            currency={currency}
+            lang={lang}
+        />
     </div>
   );
 };

@@ -89,6 +89,10 @@ export const translations: AppTranslations = {
     dateFrom: 'From Date',
     dateTo: 'To Date',
     clearFilters: 'Clear Filters',
+    minAmount: 'Min Amount',
+    maxAmount: 'Max Amount',
+    listView: 'List View',
+    gridView: 'Grid View',
     
     // Camera
     capture: 'Capture',
@@ -108,6 +112,13 @@ export const translations: AppTranslations = {
     paymentStatus: 'Payment Status',
     filterByStatus: 'Filter by Status',
     all: 'All',
+
+    // Chatbot
+    aiAssistant: 'AI Assistant',
+    chatWelcome: 'Hello! How can I help you with your invoices today? Ask me anything about the data on your screen.',
+    typeYourMessage: 'Type your message...',
+    send: 'Send',
+    askMeAnything: 'Ask about your invoices...',
 
 
     // Invoice Table Headers
@@ -207,6 +218,10 @@ export const translations: AppTranslations = {
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
     clearFilters: 'مسح الفلاتر',
+    minAmount: 'أقل مبلغ',
+    maxAmount: 'أعلى مبلغ',
+    listView: 'عرض القائمة',
+    gridView: 'عرض الشبكة',
 
     // Camera
     capture: 'التقاط',
@@ -227,6 +242,12 @@ export const translations: AppTranslations = {
     filterByStatus: 'تصفية حسب الحالة',
     all: 'الكل',
 
+    // Chatbot
+    aiAssistant: 'المساعد الذكي',
+    chatWelcome: 'مرحباً! كيف يمكنني مساعدتك بفواتيرك اليوم؟ اسألني أي شيء عن البيانات المعروضة على شاشتك.',
+    typeYourMessage: 'اكتب رسالتك...',
+    send: 'إرسال',
+    askMeAnything: 'اسأل عن فواتيرك...',
 
     // Invoice Table Headers
     invoiceNumber: 'رقم الفاتورة',

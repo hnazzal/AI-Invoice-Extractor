@@ -6,22 +6,88 @@ interface InvoiceGridProps {
   translations: Translations;
   currency: Currency;
   language: Language;
-  onInvoiceDoubleClick: (invoice: Invoice) => void;
+  onInvoiceClick: (invoice: Invoice) => void;
   onDeleteClick: (invoiceDbId: string) => void;
   onViewClick: (invoice: Invoice) => void;
   onTogglePaymentStatus: (invoiceId: string) => void;
 }
 
-const InvoiceCard: React.FC<Omit<InvoiceGridProps, 'invoices'> & { invoice: Invoice }> = ({
-  invoice,
-  translations,
-  currency,
-  language,
-  onInvoiceDoubleClick,
-  onDeleteClick,
-  onViewClick,
-  onTogglePaymentStatus
+const InvoiceCard: React.FC<{
+  invoice: Invoice;
+  translations: Translations;
+  formatCurrency: (amount: number) => string;
+} & Omit<InvoiceGridProps, 'invoices' | 'currency' | 'language'>> = ({ 
+  invoice, 
+  translations, 
+  formatCurrency, 
+  onInvoiceClick, 
+  onDeleteClick, 
+  onViewClick, 
+  onTogglePaymentStatus 
 }) => {
+  
+  const isPaid = invoice.paymentStatus === 'paid';
+  const statusClass = isPaid
+    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+    : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+  const statusText = translations[invoice.paymentStatus];
+
+  return (
+    <div className="relative group glass-pane flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-tr from-transparent via-white/50 to-transparent dark:via-white/10"></div>
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-glow"></div>
+      <div onClick={() => onInvoiceClick(invoice)} className="p-5 flex-grow cursor-pointer z-10">
+        <div className="flex justify-between items-start">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate" title={invoice.vendorName}>
+              {invoice.vendorName}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {translations.invoiceNumber} {invoice.invoiceNumber}
+            </p>
+          </div>
+           <span className={`ms-2 px-3 py-1 text-xs font-semibold rounded-full ${statusClass} flex-shrink-0`}>
+              {statusText}
+            </span>
+        </div>
+        <div className="my-4">
+            <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(invoice.totalAmount)}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{invoice.invoiceDate}</p>
+        </div>
+      </div>
+      <div className="border-t border-white/20 dark:border-slate-700/50 p-2 flex justify-end items-center gap-1 bg-white/20 dark:bg-slate-900/20 z-10">
+         {invoice.paymentStatus === 'unpaid' && invoice.id && (
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onTogglePaymentStatus(invoice.id!); }}
+                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors" 
+                    title={translations.markAsPaid}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                </button>
+            )}
+            <button 
+                onClick={(e) => { e.stopPropagation(); onViewClick(invoice); }} 
+                disabled={!invoice.sourceFileBase64}
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors" 
+                title={translations.show}>
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors" title={translations.deleteInvoice}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+              </svg>
+            </button>
+      </div>
+    </div>
+  );
+};
+
+
+const InvoiceGrid: React.FC<InvoiceGridProps> = ({ invoices, translations, currency, language, ...handlers }) => {
   const formatCurrency = (amount: number) => {
     const locale = language === 'ar' ? 'ar-JO' : 'en-US';
     return new Intl.NumberFormat(locale, {
@@ -31,58 +97,15 @@ const InvoiceCard: React.FC<Omit<InvoiceGridProps, 'invoices'> & { invoice: Invo
       maximumFractionDigits: 2,
     }).format(amount);
   };
-
-  const isPaid = invoice.paymentStatus === 'paid';
-  const statusBorderClass = isPaid ? 'border-t-green-500' : 'border-t-red-500';
-  const statusBgClass = isPaid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+  
+  if (!invoices || invoices.length === 0) {
+      return null;
+  }
 
   return (
-    <div
-      onDoubleClick={() => onInvoiceDoubleClick(invoice)}
-      className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50 overflow-hidden flex flex-col transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer border-t-4 ${statusBorderClass}`}
-    >
-      <div className="p-5 flex-grow">
-        <div className="flex justify-between items-start">
-          <div className="font-bold text-lg text-slate-800 dark:text-slate-100">{invoice.vendorName}</div>
-          <div className={`px-3 py-1 text-xs font-semibold rounded-full ${statusBgClass}`}>{translations[invoice.paymentStatus]}</div>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{`${translations.invoiceNumber} ${invoice.invoiceNumber}`}</p>
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{translations.totalAmount}</p>
-          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(invoice.totalAmount)}</p>
-          <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400 mt-2">
-            <span>{translations.invoiceDate}</span>
-            <span>{invoice.invoiceDate}</span>
-          </div>
-          <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
-            <span>{translations.customerName}</span>
-            <span>{invoice.customerName}</span>
-          </div>
-        </div>
-      </div>
-      <div className="bg-slate-50 dark:bg-slate-800/50 p-2 flex justify-end items-center gap-1">
-        {invoice.paymentStatus === 'unpaid' && invoice.id && (
-          <button onClick={() => onTogglePaymentStatus(invoice.id!)} className="p-2 rounded-full text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 hover:bg-slate-200 dark:hover:bg-slate-700" title={translations.markAsPaid}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-          </button>
-        )}
-        <button onClick={() => onViewClick(invoice)} disabled={!invoice.sourceFileBase64} className="p-2 rounded-full text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed" title={translations.show}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-        </button>
-        <button onClick={() => { if (invoice.id) onDeleteClick(invoice.id); }} className="p-2 rounded-full text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 hover:bg-slate-200 dark:hover:bg-slate-700" title={translations.deleteInvoice}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
-        </button>
-      </div>
-    </div>
-  );
-};
-
-
-const InvoiceGrid: React.FC<InvoiceGridProps> = (props) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {props.invoices.map(invoice => (
-        <InvoiceCard key={invoice.id || invoice.invoiceNumber} {...props} invoice={invoice} />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-4">
+      {invoices.map(invoice => (
+        <InvoiceCard key={invoice.id || invoice.invoiceNumber} invoice={invoice} translations={translations} formatCurrency={formatCurrency} {...handlers} />
       ))}
     </div>
   );

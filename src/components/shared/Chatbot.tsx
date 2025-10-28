@@ -1,25 +1,30 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Chat } from "@google/genai";
+import React, { useState, useEffect, useRef, FormEvent } from 'react';
+import type { Invoice, Translations, Currency, Language } from '../../types';
 import { config } from '../../config';
-import type { Translations } from '../../types';
 import Spinner from './Spinner';
 
-interface Message {
-  id: number;
-  text: string;
-  sender: 'user' | 'bot';
-}
-
-interface ChatBotProps {
+interface ChatbotProps {
+  isOpen: boolean;
+  onClose: () => void;
+  invoices: Invoice[];
   translations: Translations;
+  currency: Currency;
+  lang: Language;
 }
 
-const ChatBot: React.FC<ChatBotProps> = ({ translations }) => {
-  const [isOpen, setIsOpen] = useState(false);
+interface Message {
+  role: 'user' | 'model';
+  content: string;
+}
+
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, invoices, translations, currency, lang }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isVisible = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,97 +32,141 @@ const ChatBot: React.FC<ChatBotProps> = ({ translations }) => {
 
   useEffect(scrollToBottom, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedInput = inputValue.trim();
-    if (!trimmedInput || isLoading) return;
+  useEffect(() => {
+    if (isOpen && !isVisible.current) {
+        isVisible.current = true; // Mark as visible to prevent re-initialization
+        setIsLoading(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey: config.apiKey! });
+            
+            const currentDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const invoiceDataString = invoices.length > 0 ? JSON.stringify(invoices, null, 2) : "No invoices to display.";
 
-    const userMessage: Message = { id: Date.now(), text: trimmedInput, sender: 'user' };
-    setMessages(prev => [...prev, userMessage]);
+            const systemPrompt = `You are an intelligent invoice assistant integrated into an application. Your purpose is to help users understand their invoice data by answering their questions. You will be provided with a list of the user's invoices in JSON format. You MUST base your answers strictly on this data. Do not invent or assume any information not present in the provided JSON. When asked for totals or summaries, calculate them accurately from the data. If a question cannot be answered using the provided data, state that clearly and politely. For example, say "I can only answer questions about the invoice data I have." Keep your answers concise and clear. The user's currency is ${currency}. Make sure to mention the currency in your answers when talking about money. Today's date is ${currentDate}. Use this for any time-related questions like "this month". Here is the user's current invoice data: ${invoiceDataString}`;
+            
+            chatRef.current = ai.chats.create({
+                model: 'gemini-2.5-flash',
+                history: [
+                    { role: 'user', parts: [{ text: systemPrompt }] },
+                    { role: 'model', parts: [{ text: translations.chatWelcome }] }
+                ]
+            });
+
+            setMessages([{ role: 'model', content: translations.chatWelcome }]);
+        } catch (error) {
+            console.error("Failed to initialize chatbot:", error);
+            setMessages([{ role: 'model', content: "Sorry, I couldn't start up correctly. Please check the console for errors." }]);
+        } finally {
+            setIsLoading(false);
+        }
+    } else if (!isOpen) {
+        // Reset when closed
+        isVisible.current = false;
+        chatRef.current = null;
+        setMessages([]);
+    }
+  }, [isOpen, invoices, translations, currency]);
+
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    const userMessage = inputValue.trim();
+    if (!userMessage || isLoading || !chatRef.current) return;
+
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: config.apiKey! });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: "You are a friendly and helpful assistant for an AI invoice extraction application. Keep your answers concise and helpful. The user's question is: " + trimmedInput,
-      });
-      const botResponseText = response.text;
-      const botMessage: Message = { id: Date.now() + 1, text: botResponseText, sender: 'bot' };
-      setMessages(prev => [...prev, botMessage]);
+        const response = await chatRef.current.sendMessage({ message: userMessage });
+        const modelResponse = response.text;
+        setMessages(prev => [...prev, { role: 'model', content: modelResponse }]);
     } catch (error) {
-      console.error("ChatBot error:", error);
-      const errorMessage: Message = { id: Date.now() + 1, text: "Sorry, I couldn't get a response. Please try again.", sender: 'bot' };
-      setMessages(prev => [...prev, errorMessage]);
+        console.error("Chatbot error:", error);
+        setMessages(prev => [...prev, { role: 'model', content: "Sorry, I encountered an error. Please try again." }]);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
+  };
+
+  const renderContent = (content: string) => {
+    // Basic markdown for newlines
+    return content.split('\n').map((line, index) => (
+        <React.Fragment key={index}>
+            {line}
+            <br />
+        </React.Fragment>
+    ));
   };
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 end-6 w-16 h-16 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-2xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 z-50 transition-transform transform hover:scale-110"
-        aria-label={translations.chatWithAI}
+      <div 
+        className={`fixed inset-0 bg-black/30 dark:bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+        aria-hidden={!isOpen}
+      ></div>
+      <div
+        className={`fixed top-0 bottom-0 ${lang === 'ar' ? 'left-0' : 'right-0'} w-full max-w-md bg-white dark:bg-slate-900/95 backdrop-blur-lg border-s border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out z-50 ${isOpen ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chatbot-title"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /><path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h1a2 2 0 002-2V9a2 2 0 00-2-2h-1z" /></svg>
-      </button>
+        <header className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <h2 id="chatbot-title" className="text-lg font-bold text-slate-800 dark:text-slate-100">{translations.aiAssistant}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+            aria-label={translations.close}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </header>
 
-      {isOpen && (
-        <div className="fixed bottom-24 end-6 w-full max-w-sm h-[60vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50 border border-slate-200 dark:border-slate-700 opacity-0 animate-fade-in-up">
-          <header className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-            <h3 className="font-bold text-lg">{translations.chatHeader}</h3>
-            <button onClick={() => setIsOpen(false)} className="p-1 rounded-full text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            </button>
-          </header>
-
-          <main className="flex-grow p-4 overflow-y-auto space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs md:max-w-md lg:max-w-xs xl:max-w-sm px-4 py-2 rounded-2xl ${message.sender === 'user' ? 'bg-indigo-600 text-white rounded-br-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-lg'}`}>
-                  <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>
-                </div>
+        <div className="flex-grow p-4 overflow-y-auto space-y-4">
+          {messages.map((msg, index) => (
+            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-xs md:max-w-sm lg:max-w-md px-4 py-2 rounded-2xl ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-lg'}`}>
+                <p className="text-sm">{renderContent(msg.content)}</p>
               </div>
-            ))}
-             {isLoading && (
-              <div className="flex justify-start">
-                <div className="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 rounded-bl-lg">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></div>
-                    </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+               <div className="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 rounded-bl-lg">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </main>
-
-          <footer className="p-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={translations.chatPlaceholder}
-                className="flex-grow px-4 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-400"
-              >
-                {isLoading ? <Spinner /> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>}
-              </button>
-            </form>
-          </footer>
+               </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
-      )}
+
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={translations.typeYourMessage}
+              className="flex-grow w-full px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+              disabled={isLoading || !inputValue.trim()}
+              aria-label={translations.send}
+            >
+              {isLoading ? <Spinner /> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.428A1 1 0 009.05 16.43l-2.072-5.889a.5.5 0 01.932-.328l2.978 8.455a1 1 0 001.788 0l7-14a1 1 0 00-1.169-1.409l-5 1.428A1 1 0 0010.95 3.57l2.072 5.889a.5.5 0 01-.932.328l-2.978-8.455z" /></svg>}
+            </button>
+          </form>
+        </div>
+      </div>
     </>
   );
 };
 
-export default ChatBot;
+export default Chatbot;
