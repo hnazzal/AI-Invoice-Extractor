@@ -63,7 +63,7 @@ export const translations: AppTranslations = {
     noInvoices: 'No purchase invoices yet. Upload one to get started.',
     newlyExtractedInvoice: 'Newly Extracted Invoice',
     savedInvoices: 'Purchase Invoices',
-    saveInvoice: 'Save\nInvoice',
+    saveInvoice: 'Save Invoice',
     saving: 'Saving...',
     invoiceSaved: 'Invoice data saved successfully!',
     saveError: 'Failed to save invoice: ',
@@ -88,8 +88,6 @@ export const translations: AppTranslations = {
     searchPlaceholder: 'Search by number, vendor, customer, or item...',
     dateFrom: 'From Date',
     dateTo: 'To Date',
-    amountFrom: 'From Amount',
-    amountTo: 'To Amount',
     clearFilters: 'Clear Filters',
     
     // Camera
@@ -110,15 +108,6 @@ export const translations: AppTranslations = {
     paymentStatus: 'Payment Status',
     filterByStatus: 'Filter by Status',
     all: 'All',
-
-    // View Modes
-    tableView: 'Table',
-    gridView: 'Grid',
-
-    // ChatBot
-    chatWithAI: 'AI Assistant',
-    chatHeader: 'AI Assistant',
-    chatPlaceholder: 'Ask a question...',
 
 
     // Invoice Table Headers
@@ -192,7 +181,7 @@ export const translations: AppTranslations = {
     noInvoices: 'لا توجد فواتير مشتريات حتى الآن. قم برفع فاتورة للبدء.',
     newlyExtractedInvoice: 'فاتورة مستخرجة حديثاً',
     savedInvoices: 'فواتير المشتريات',
-    saveInvoice: 'حفظ\nالفاتورة',
+    saveInvoice: 'حفظ الفاتورة',
     saving: 'جارِ الحفظ...',
     invoiceSaved: 'تم حفظ بيانات الفاتورة بنجاح!',
     saveError: 'فشل حفظ الفاتورة: ',
@@ -217,8 +206,6 @@ export const translations: AppTranslations = {
     searchPlaceholder: 'ابحث بالرقم، البائع، العميل، أو البند...',
     dateFrom: 'من تاريخ',
     dateTo: 'إلى تاريخ',
-    amountFrom: 'من مبلغ',
-    amountTo: 'إلى مبلغ',
     clearFilters: 'مسح الفلاتر',
 
     // Camera
@@ -240,14 +227,6 @@ export const translations: AppTranslations = {
     filterByStatus: 'تصفية حسب الحالة',
     all: 'الكل',
 
-    // View Modes
-    tableView: 'جدول',
-    gridView: 'شبكة',
-
-    // ChatBot
-    chatWithAI: 'المساعد الذكي',
-    chatHeader: 'المساعد الذكي',
-    chatPlaceholder: 'اطرح سؤالاً...',
 
     // Invoice Table Headers
     invoiceNumber: 'رقم الفاتورة',
