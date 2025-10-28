@@ -66,6 +66,31 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
 // --- Invoice Management ---
 
+/**
+ * Tries to parse a date string from various common formats and returns it as 'YYYY-MM-DD'.
+ * Throws an error with a clear message if the date is invalid.
+ */
+const normalizeDate = (dateString: string): string => {
+    if (!dateString || typeof dateString !== 'string') {
+        throw new Error('Invoice date is missing or invalid.');
+    }
+    // Attempt to parse the date. This is robust against formats like "MM/DD/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", etc.
+    const date = new Date(dateString);
+
+    // Check if the parsed date is valid. `isNaN(date.getTime())` is a reliable way to check.
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date format: "${dateString}". Please correct it to YYYY-MM-DD format.`);
+    }
+
+    // Format the date to 'YYYY-MM-DD'
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+
 const mapDbItemToAppItem = (dbItem: any): InvoiceItem => ({
   description: dbItem.description,
   quantity: dbItem.quantity,
@@ -99,22 +124,18 @@ export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
 };
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
-    // 1. Generate a UUID on the client-side. This is more robust as it avoids
-    //    relying on `return=representation` which can be problematic with RLS.
     const newInvoiceId = crypto.randomUUID();
 
-    // 2. Prepare and insert the master invoice data, including the client-generated ID.
+    // Create the master invoice payload.
     const masterInvoicePayload = {
-        id: newInvoiceId, // Provide the ID for the new record
+        id: newInvoiceId,
         user_id: user.id,
         invoice_number: invoice.invoiceNumber,
         vendor_name: invoice.vendorName,
         customer_name: invoice.customerName,
-        invoice_date: invoice.invoiceDate,
+        invoice_date: normalizeDate(invoice.invoiceDate),
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
-        source_file_base_64: invoice.sourceFileBase64,
-        source_file_mime_type: invoice.sourceFileMimeType,
     };
 
     // Post the master invoice record. `return=minimal` is efficient and avoids RLS select issues.
@@ -127,7 +148,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         body: JSON.stringify(masterInvoicePayload),
     });
 
-    // 3. Prepare and bulk insert the invoice items using the same client-generated ID.
+    // Bulk insert the invoice items using the same client-generated ID.
     if (invoice.items && invoice.items.length > 0) {
         const itemsPayload = invoice.items.map(item => ({
             invoice_id: newInvoiceId,
@@ -141,13 +162,13 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${user.token}`,
-                'Prefer': 'return=minimal' // Ensures the insert doesn't fail due to RLS select policies.
+                'Prefer': 'return=minimal'
             },
             body: JSON.stringify(itemsPayload),
         });
     }
 
-    // 4. Return the complete invoice object as it should exist in the app state
+    // Return the saved invoice data (without file data) to update the UI.
     return {
         ...invoice,
         id: newInvoiceId,

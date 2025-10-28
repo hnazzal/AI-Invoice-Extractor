@@ -243,9 +243,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
         setInvoices(prevInvoices => [{...savedInvoice, uploaderEmail: user.email }, ...prevInvoices]);
         setNewlyExtractedInvoice(null);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save invoice:", error);
-        setProcessingError(translations.saveError);
+        setProcessingError(`${translations.saveError}${error.message}`);
     } finally {
         setIsSaving(false);
     }
