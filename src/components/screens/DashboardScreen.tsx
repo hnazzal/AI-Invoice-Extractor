@@ -21,13 +21,12 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const SummaryCard = ({ title, value, icon, gradient }) => (
-  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-all transform hover:scale-105 duration-300 shadow-lg group ${gradient}`}>
-    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-125">{icon}</div>
+  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-transform transform hover:scale-105 duration-300 shadow-lg ${gradient}`}>
+    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10">{icon}</div>
     <div className="relative z-10">
       <p className="text-sm font-medium uppercase opacity-80">{title}</p>
       <p className="text-4xl font-bold mt-2">{value}</p>
     </div>
-    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
   </div>
 );
 
@@ -68,7 +67,7 @@ const UploadOptionCard = ({ icon, title, subtitle, onClick }) => (
         onClick={onClick}
         className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group"
     >
-        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:scale-110">
+        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
             {icon}
         </div>
         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
@@ -149,19 +148,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Fix layout shift when chatbot is open in RTL mode
-  useEffect(() => {
-    const htmlElement = document.documentElement;
-    if (isChatbotOpen) {
-      const originalOverflowX = htmlElement.style.overflowX;
-      htmlElement.style.overflowX = 'hidden';
-
-      return () => {
-        htmlElement.style.overflowX = originalOverflowX;
-      };
-    }
-  }, [isChatbotOpen]);
 
   const processFile = async (file: File) => {
     setIsProcessing(true);
@@ -392,9 +378,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
 
-        <section className="p-6 glass-pane">
+        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
 
             {isProcessing ? (
                 <ProcessingLoader translations={translations} />
@@ -443,7 +429,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         )}
 
         {newlyExtractedInvoice && !isProcessing && (
-            <section className="p-6 bg-green-500/10 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-500/20 dark:border-green-700/50 opacity-0 animate-fade-in-up">
+            <section className="p-6 bg-green-50/50 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
@@ -458,17 +444,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     </div>
                 </div>
                 {processingError && <p className="mb-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
-                <div className="overflow-hidden rounded-xl border border-green-500/20">
-                  <InvoiceTable 
-                      invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
-                      onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
-                      columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
-                  />
-                </div>
+                <InvoiceTable 
+                    invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
+                    onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
+                    columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
+                />
             </section>
         )}
 
-        <section className="p-6 glass-pane">
+        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                 <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
                 <div className="flex items-center gap-4">
@@ -479,7 +463,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                             {translations.columns}
                         </button>
                         {isColsDropdownOpen && (
-                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md ring-1 ring-black ring-opacity-5 z-20 p-2">
+                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 z-20 p-2">
                                 {ALL_COLUMNS.filter(key => key !== 'actions').map(colKey => (
                                     <label key={colKey} className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md cursor-pointer">
                                         <input type="checkbox" checked={columnVisibility[colKey]} onChange={() => setColumnVisibility(prev => ({...prev, [colKey]: !prev[colKey]}))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
@@ -495,15 +479,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             </div>
             <div className="flex flex-wrap items-center gap-4 mb-6">
                     <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-auto flex-grow px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        className="w-full sm:w-auto flex-grow px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input
                         type="number"
                         placeholder={translations.minAmount}
                         value={minAmount}
                         onChange={e => setMinAmount(e.target.value)}
-                        className="w-full sm:w-28 px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full sm:w-28 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         aria-label={translations.minAmount}
                     />
                     <input
@@ -511,7 +495,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                         placeholder={translations.maxAmount}
                         value={maxAmount}
                         onChange={e => setMaxAmount(e.target.value)}
-                        className="w-full sm:w-28 px-4 py-2 bg-slate-50/80 dark:bg-slate-900/50 border border-slate-300/80 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full sm:w-28 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         aria-label={translations.maxAmount}
                     />
                     <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
@@ -561,7 +545,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         <button
             onClick={() => setIsChatbotOpen(true)}
-            className="fixed bottom-6 end-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800 animate-float"
+            className="fixed bottom-6 end-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800"
             aria-label={translations.aiAssistant}
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">

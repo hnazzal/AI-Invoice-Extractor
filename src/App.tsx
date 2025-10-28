@@ -80,7 +80,7 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-500"></div>
       </div>
     );
@@ -100,7 +100,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen text-slate-800 dark:text-slate-200 font-sans transition-colors duration-300 flex flex-col`}>
+    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans transition-colors duration-300 flex flex-col`}>
+       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-30%] left-[-30%] w-[60rem] h-[60rem] bg-indigo-200/20 dark:bg-indigo-900/20 rounded-full filter blur-3xl opacity-30"></div>
+          <div className="absolute bottom-[-30%] right-[-30%] w-[60rem] h-[60rem] bg-sky-200/20 dark:bg-sky-900/20 rounded-full filter blur-3xl opacity-30"></div>
+      </div>
       <Header 
         user={user} 
         onLogout={handleLogout} 

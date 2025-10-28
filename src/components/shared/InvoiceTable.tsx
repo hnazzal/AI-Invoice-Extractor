@@ -125,7 +125,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             {invoice.paymentStatus === 'unpaid' && invoice.id && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onTogglePaymentStatus(invoice.id!); }}
-                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-700/60" 
+                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700" 
                     title={translations.markAsPaid}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -135,14 +135,14 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             <button 
                 onClick={(e) => { e.stopPropagation(); onViewClick(invoice); }} 
                 disabled={!invoice.sourceFileBase64}
-                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-700/60 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent" 
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent" 
                 title={translations.show}>
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                     <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                 </svg>
             </button>
-            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors" title={translations.deleteInvoice}>
+            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title={translations.deleteInvoice}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
               </svg>
@@ -166,13 +166,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-slate-200/70 dark:divide-slate-700/70" style={{ tableLayout: 'fixed' }}>
+      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ tableLayout: 'fixed' }}>
         <colgroup>
           {visibleColumns.map(col => (
             <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />
           ))}
         </colgroup>
-        <thead className="bg-slate-50/50 dark:bg-slate-700/20">
+        <thead className="bg-slate-50 dark:bg-slate-700/50">
           <tr>
             {visibleColumns.map(col => (
                <th 
@@ -192,12 +192,12 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200/70 dark:divide-slate-700/70">
+        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
           {invoices.map((invoice, index) => (
             <tr 
               key={invoice.id || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
-              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-slate-200/30 dark:hover:bg-slate-700/30`}
+              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 even:bg-slate-50/50 dark:even:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50`}
             >
               {visibleColumns.map(col => (
                 <td key={col.key} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 text-${col.align}`}>
@@ -207,7 +207,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100/50 dark:bg-slate-700/20 font-semibold">
+        <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700/50 font-semibold">
           <tr>
              {summaryColSpan > 0 && (
                 <td colSpan={summaryColSpan} className="px-6 py-4 text-start text-sm text-slate-700 dark:text-slate-200">

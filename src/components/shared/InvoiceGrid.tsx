@@ -33,10 +33,8 @@ const InvoiceCard: React.FC<{
   const statusText = translations[invoice.paymentStatus];
 
   return (
-    <div className="relative group glass-pane flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-tr from-transparent via-white/50 to-transparent dark:via-white/10"></div>
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-glow"></div>
-      <div onClick={() => onInvoiceClick(invoice)} className="p-5 flex-grow cursor-pointer z-10">
+    <div className="relative group bg-white dark:bg-slate-800/80 rounded-xl shadow-md border border-slate-200 dark:border-slate-700/50 flex flex-col transition-all duration-300 hover:shadow-xl hover:border-indigo-400 dark:hover:border-indigo-500 hover:-translate-y-1">
+      <div onClick={() => onInvoiceClick(invoice)} className="p-5 flex-grow cursor-pointer">
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate" title={invoice.vendorName}>
@@ -55,11 +53,11 @@ const InvoiceCard: React.FC<{
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{invoice.invoiceDate}</p>
         </div>
       </div>
-      <div className="border-t border-white/20 dark:border-slate-700/50 p-2 flex justify-end items-center gap-1 bg-white/20 dark:bg-slate-900/20 z-10">
+      <div className="border-t border-slate-200 dark:border-slate-700/50 p-2 flex justify-end items-center gap-1 bg-slate-50/50 dark:bg-slate-900/20 rounded-b-xl">
          {invoice.paymentStatus === 'unpaid' && invoice.id && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onTogglePaymentStatus(invoice.id!); }}
-                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors" 
+                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" 
                     title={translations.markAsPaid}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -69,14 +67,14 @@ const InvoiceCard: React.FC<{
             <button 
                 onClick={(e) => { e.stopPropagation(); onViewClick(invoice); }} 
                 disabled={!invoice.sourceFileBase64}
-                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors" 
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors" 
                 title={translations.show}>
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                     <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                 </svg>
             </button>
-            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors" title={translations.deleteInvoice}>
+            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title={translations.deleteInvoice}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
               </svg>
