@@ -59,19 +59,22 @@ const calculateSchema = {
     required: ["result"]
 };
 
-const suggestSchema = {
-    type: Type.OBJECT,
-    properties: {
-        suggestions: {
-            type: Type.ARRAY,
-            description: "A list of 3 insightful and relevant KPI questions that can be answered from the provided data.",
-            items: { type: Type.STRING }
-        }
-    },
-    required: ["suggestions"]
+// --- Handlers for different AI tasks ---
+
+/**
+ * Safely parses a value into a float, handling numbers, strings with commas, and invalid inputs.
+ * @param value The value to parse.
+ * @returns The parsed number, or 0 if parsing fails.
+ */
+const safeParseFloat = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return 0;
+    // Remove commas and other non-numeric characters except for the decimal point
+    const cleanedValue = value.replace(/[^0-9.-]+/g, '');
+    const num = parseFloat(cleanedValue);
+    return isNaN(num) ? 0 : num;
 };
 
-// --- Handlers for different AI tasks ---
 
 const handleExtract = async (ai: GoogleGenAI, body: any) => {
     const { fileBase64, mimeType } = body;
@@ -88,14 +91,20 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
 
     const parsedJson = JSON.parse(response.text.trim());
     const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
-        invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '', vendorName: parsedJson.vendorName || '',
-        customerName: parsedJson.customerName || '', invoiceDate: parsedJson.invoiceDate || '',
-        totalAmount: parsedJson.totalAmount || 0,
+        invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '', 
+        vendorName: parsedJson.vendorName || '',
+        customerName: parsedJson.customerName || '', 
+        invoiceDate: parsedJson.invoiceDate || '',
+        totalAmount: safeParseFloat(parsedJson.totalAmount),
         items: Array.isArray(parsedJson.items) ? parsedJson.items.map((item: any) => ({
-            description: item.description || '', quantity: item.quantity || 0,
-            unitPrice: item.unitPrice || 0, total: item.total || 0,
+            description: item.description || '', 
+            quantity: safeParseFloat(item.quantity),
+            unitPrice: safeParseFloat(item.unitPrice), 
+            total: safeParseFloat(item.total),
         })) : [],
-        paymentStatus: 'unpaid', sourceFileBase64: fileBase64, sourceFileMimeType: mimeType,
+        paymentStatus: 'unpaid', 
+        sourceFileBase64: fileBase64, 
+        sourceFileMimeType: mimeType,
     };
     if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
         throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
@@ -113,20 +122,6 @@ const handleCalculate = async (ai: GoogleGenAI, body: any) => {
         model: 'gemini-2.5-flash',
         contents: { parts: [{ text: prompt }] },
         config: { responseMimeType: "application/json", responseSchema: calculateSchema },
-    });
-    return JSON.parse(response.text.trim());
-};
-
-const handleSuggest = async (ai: GoogleGenAI, body: any) => {
-    const { invoices } = body;
-    if (!invoices) throw new Error('Missing invoices for suggest task.');
-
-    const prompt = `Based on this sample of invoice data, generate 3 distinct and insightful questions a user might ask. Frame them as simple key performance indicators (KPIs). For example: "What is the average invoice total?" or "Which vendor has the most invoices?". \n\nData: ${JSON.stringify(invoices, null, 2)}`;
-
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] },
-        config: { responseMimeType: "application/json", responseSchema: suggestSchema },
     });
     return JSON.parse(response.text.trim());
 };
@@ -153,9 +148,6 @@ const handler: Handler = async (event: HandlerEvent) => {
                 break;
             case 'calculate':
                 responseData = await handleCalculate(ai, body);
-                break;
-            case 'suggest':
-                responseData = await handleSuggest(ai, body);
                 break;
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: 'Invalid task specified.' }) };

@@ -36,11 +36,3 @@ export const calculateKpiFromInvoices = async (query: string, invoices: Invoice[
     );
     return callProxy({ task: 'calculate', query, invoices: relevantData });
 };
-
-export const suggestKpis = async (invoices: Invoice[]): Promise<{ suggestions: string[] }> => {
-    // Sanitize invoices to send only necessary data, limiting to a reasonable number to manage payload size and token usage.
-    const relevantData = invoices.slice(0, 20).map(({ vendorName, totalAmount, paymentStatus, invoiceDate }) => 
-        ({ vendorName, totalAmount, paymentStatus, invoiceDate })
-    );
-    return callProxy({ task: 'suggest', invoices: relevantData });
-};

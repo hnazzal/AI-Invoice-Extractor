@@ -137,10 +137,8 @@ export const translations: AppTranslations = {
     aiKpiGeneratorTitle: 'AI-Powered KPI Generator',
     kpiQueryPlaceholder: 'Ask a custom KPI question (e.g., "total of unpaid invoices")',
     generateKpi: 'Generate',
-    suggestKpis: 'Suggest More KPIs',
     kpiResultTitle: 'AI Generated Answer',
     calculatingKpi: 'Calculating...',
-    suggestionError: 'Could not fetch suggestions.',
     calculationError: 'Could not calculate the KPI.',
   },
   ar: {
@@ -273,10 +271,8 @@ export const translations: AppTranslations = {
     aiKpiGeneratorTitle: 'مولد مؤشرات الأداء بالذكاء الاصطناعي',
     kpiQueryPlaceholder: 'اطلب مؤشر أداء مخصص (مثال: "إجمالي الفواتير غير المدفوعة")',
     generateKpi: 'إنشاء',
-    suggestKpis: 'اقترح المزيد من المؤشرات',
     kpiResultTitle: 'إجابة الذكاء الاصطناعي',
     calculatingKpi: 'جارِ الحساب...',
-    suggestionError: 'تعذر جلب الاقتراحات.',
     calculationError: 'تعذر حساب المؤشر.',
   }
 };
