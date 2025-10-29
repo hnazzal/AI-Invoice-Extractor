@@ -107,7 +107,7 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   totalAmount: dbInvoice.total_amount,
   paymentStatus: dbInvoice.status || 'unpaid',
   items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.file_base64,
+  sourceFileBase64: dbInvoice.file_base_64,
   sourceFileMimeType: dbInvoice.file_mime_type,
 });
 
@@ -126,7 +126,7 @@ export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
     const newInvoiceId = crypto.randomUUID();
 
-    // Create the master invoice payload.
+    // Step 1: Insert the main invoice record WITHOUT the large file data.
     const masterInvoicePayload = {
         id: newInvoiceId,
         user_id: user.id,
@@ -136,11 +136,8 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         invoice_date: normalizeDate(invoice.invoiceDate),
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
-        file_base64: invoice.sourceFileBase64,
-        file_mime_type: invoice.sourceFileMimeType,
     };
 
-    // Post the master invoice record. `return=minimal` is efficient and avoids RLS select issues.
     await apiFetch('/rest/v1/invoices', {
         method: 'POST',
         headers: {
@@ -150,7 +147,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         body: JSON.stringify(masterInvoicePayload),
     });
 
-    // Bulk insert the invoice items using the same client-generated ID.
+    // Step 2: Bulk insert the invoice items using the same client-generated ID.
     if (invoice.items && invoice.items.length > 0) {
         const itemsPayload = invoice.items.map(item => ({
             invoice_id: newInvoiceId,
@@ -169,8 +166,23 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
             body: JSON.stringify(itemsPayload),
         });
     }
+    
+    // Step 3: If a file exists, UPDATE the newly created record with the file data.
+    if (invoice.sourceFileBase64 && invoice.sourceFileMimeType) {
+        await apiFetch(`/rest/v1/invoices?id=eq.${newInvoiceId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${user.token}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ 
+                file_base_64: invoice.sourceFileBase64,
+                file_mime_type: invoice.sourceFileMimeType,
+            }),
+        });
+    }
 
-    // Return the saved invoice data (without file data) to update the UI.
+    // Return the saved invoice data to update the UI.
     return {
         ...invoice,
         id: newInvoiceId,
@@ -180,8 +192,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
 
 export const updateInvoicePaymentStatus = async (token: string, invoiceId: string, newStatus: 'paid' | 'unpaid'): Promise<void> => {
     // By using 'return=minimal', we only perform the update and don't ask for the
-    // updated record back. This avoids the schema cache error which happens when
-    // PostgREST tries to SELECT the data after the update.
+    // updated record back. This avoids potential schema cache errors.
     await apiFetch(`/rest/v1/invoices?id=eq.${invoiceId}`, {
         method: 'PATCH',
         headers: {
