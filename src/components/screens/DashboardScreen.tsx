@@ -3,12 +3,12 @@ import type { User, Invoice, Translations, Currency, Language } from '../../type
 import * as geminiService from '../../services/geminiService';
 import * as dbService from '../../services/dbService';
 import InvoiceTable from '../shared/InvoiceTable';
-import InvoiceGrid from '../shared/InvoiceGrid';
 import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
-import Spinner from '../shared/Spinner';
+import ManualInvoiceModal from '../shared/ManualInvoiceModal';
+import ScannerInstructionsModal from '../shared/ScannerInstructionsModal';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -20,10 +20,8 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const SummaryCard = ({ title, value, icon, gradient }) => (
-  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-all transform hover:scale-105 duration-300 shadow-lg hover:shadow-xl ${gradient} group`}>
-    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-125">{icon}</div>
-     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300"></div>
-    <div className="absolute inset-0 ring-1 ring-inset ring-white/20 rounded-2xl"></div>
+  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-transform transform hover:scale-105 duration-300 shadow-lg ${gradient}`}>
+    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10">{icon}</div>
     <div className="relative z-10">
       <p className="text-sm font-medium uppercase opacity-80">{title}</p>
       <p className="text-4xl font-bold mt-2">{value}</p>
@@ -43,7 +41,7 @@ const StatusPillFilter = ({ value, onChange, translations, lang }: { value: stri
     : { left: `calc(${activeIndex} * (100% / 3))` };
 
   return (
-    <div className="relative flex items-center w-60 h-11 rounded-full p-1 bg-white/50 dark:bg-slate-900/50 shadow-inner">
+    <div className="relative flex items-center w-60 h-11 rounded-full p-1 bg-slate-200 dark:bg-slate-900/50 shadow-inner">
       <div
         className="absolute bg-white dark:bg-slate-700/50 h-9 rounded-full shadow-md transition-all duration-300 ease-in-out"
         style={{ width: 'calc(100% / 3 - 4px)', ...positionStyle, margin: '0 2px' }}
@@ -63,38 +61,17 @@ const StatusPillFilter = ({ value, onChange, translations, lang }: { value: stri
   );
 };
 
-const UploadOptionCard = ({ icon, title, subtitle, onClick, animationClass = '' }) => (
+const UploadOptionCard = ({ icon, title, subtitle, onClick }) => (
     <div 
         onClick={onClick}
-        className={`flex-1 flex flex-col items-center justify-center p-6 bg-white/30 dark:bg-slate-900/30 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-300 cursor-pointer text-center group ${animationClass}`}
+        className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group"
     >
-        <div className="w-16 h-16 bg-white/50 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:scale-110">
+        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
             {icon}
         </div>
         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
     </div>
-);
-
-const ViewModeToggle = ({ value, onChange, translations }: { value: 'list' | 'grid', onChange: (mode: 'list' | 'grid') => void, translations: Translations }) => (
-  <div className="flex items-center rounded-lg bg-white/50 dark:bg-slate-900/50 p-1">
-    <button 
-      onClick={() => onChange('list')}
-      className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${value === 'list' ? 'bg-white dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-      aria-pressed={value === 'list'}
-      title={translations.listView}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
-    </button>
-    <button 
-      onClick={() => onChange('grid')}
-      className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${value === 'grid' ? 'bg-white dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-      aria-pressed={value === 'grid'}
-      title={translations.gridView}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-    </button>
-  </div>
 );
 
 
@@ -112,24 +89,20 @@ type ColumnKey = typeof ALL_COLUMNS[number];
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, invoices, setInvoices, currency, lang }) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [processingError, setProcessingError] = useState('');
-  const [newlyExtractedInvoices, setNewlyExtractedInvoices] = useState<Invoice[]>([]);
+  const [newlyExtractedInvoice, setNewlyExtractedInvoice] = useState<Invoice | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
-  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
+  const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,18 +113,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState('');
   
-  // AI KPI Generator State
-  const [kpiQuery, setKpiQuery] = useState('');
-  const [kpiResult, setKpiResult] = useState<string | null>(null);
-  const [isCalculatingKpi, setIsCalculatingKpi] = useState(false);
-  const [kpiError, setKpiError] = useState('');
-
-  // Clear selection when filters or view mode change to avoid accidental operations on hidden items
-  useEffect(() => {
-    setSelectedInvoiceIds(new Set());
-  }, [searchTerm, dateFrom, dateTo, statusFilter, minAmount, maxAmount, viewMode]);
-
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (colsDropdownRef.current && !colsDropdownRef.current.contains(event.target as Node)) {
@@ -162,52 +123,40 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const processSingleFile = async (file: File): Promise<Invoice> => {
+  const processFile = async (file: File) => {
+    setIsProcessing(true);
+    setProcessingError('');
+    setNewlyExtractedInvoice(null);
+    
+    try {
       const base64String = await fileToBase64(file);
       const pureBase64 = base64String.split(',')[1];
       
       const extractedData = await geminiService.extractInvoiceDataFromFile(pureBase64, file.type);
       
-      return {
+      setNewlyExtractedInvoice({
         ...extractedData,
-        clientId: `${Date.now()}-${Math.random()}`, // Add a unique client ID for list rendering
         sourceFileBase64: pureBase64,
         sourceFileMimeType: file.type,
-      };
+      });
+
+    } catch (error: any) {
+      setProcessingError(translations.extractionError);
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
+      if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsProcessing(true);
-    setProcessingError('');
-    setNewlyExtractedInvoices([]);
-
-    const processingPromises = Array.from(files).map(processSingleFile);
-    const results = await Promise.allSettled(processingPromises);
-
-    const successfulInvoices: Invoice[] = [];
-    let failureCount = 0;
-
-    results.forEach(result => {
-        if (result.status === 'fulfilled') {
-            successfulInvoices.push(result.value);
-        } else {
-            failureCount++;
-            console.error("Extraction failed for a file:", result.reason);
-        }
-    });
-
-    setNewlyExtractedInvoices(successfulInvoices);
-
-    if (failureCount > 0) {
-        setProcessingError(translations.extractionErrors.replace('{count}', String(failureCount)));
-    }
-
-    setIsProcessing(false);
-    if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setProcessingError('');
+      setNewlyExtractedInvoice(null);
+      processFile(file);
     }
   };
   
@@ -281,57 +230,33 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         .then(blob => {
           const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
           handleCloseCamera();
-          // Wrap in an array to use the multi-file handler
-          handleFileChange({ target: { files: [file] } } as any);
+          processFile(file);
         });
     }
   };
   // --- End Camera Logic ---
 
-  const handleSaveAllInvoices = async () => {
-    if (newlyExtractedInvoices.length === 0) return;
-
-    setIsSaving(true);
-    setProcessingError('');
-
-    const savePromises = newlyExtractedInvoices.map(invoice => 
-        dbService.saveInvoiceForUser(user, invoice)
-    );
-
-    const results = await Promise.allSettled(savePromises);
+  const handleSaveInvoice = async () => {
+    if (!newlyExtractedInvoice) return;
     
-    const savedInvoices: Invoice[] = [];
-    const failedInvoices: Invoice[] = [];
-    let firstErrorReason: string | null = null;
-    
-    results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-            savedInvoices.push({ ...result.value, uploaderEmail: user.email });
-        } else {
-            console.error("Failed to save invoice:", result.reason);
-            if (firstErrorReason === null) {
-              // Extract the message from the error object
-              firstErrorReason = result.reason instanceof Error ? result.reason.message : String(result.reason);
-            }
-            failedInvoices.push(newlyExtractedInvoices[index]);
-        }
-    });
-    
-    if (savedInvoices.length > 0) {
-        setInvoices(prev => [...savedInvoices, ...prev]);
+    try {
+        const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
+        setInvoices(prevInvoices => [{...savedInvoice, uploaderEmail: user.email }, ...prevInvoices]);
+        setNewlyExtractedInvoice(null);
+    } catch (error) {
+        console.error("Failed to save invoice:", error);
     }
-    
-    setNewlyExtractedInvoices(failedInvoices); // Keep failed invoices for review
+  };
 
-    if (failedInvoices.length > 0) {
-        const baseMessage = translations.saveAllError;
-        const finalMessage = firstErrorReason 
-            ? `${baseMessage} ${translations.reason}: ${firstErrorReason}`
-            : baseMessage;
-        setProcessingError(finalMessage);
+  const handleSaveManualInvoice = async (invoiceToSave: Invoice) => {
+    try {
+        const savedInvoice = await dbService.saveInvoiceForUser(user, invoiceToSave);
+        setInvoices(prev => [{...savedInvoice, uploaderEmail: user.email }, ...prev]);
+        setIsManualEntryOpen(false);
+    } catch (error: any) {
+        console.error("Failed to save manual invoice:", error);
+        throw error;
     }
-    
-    setIsSaving(false);
   };
 
   const handleDeleteInvoice = async () => {
@@ -340,30 +265,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     try {
         await dbService.deleteInvoiceForUser(user.token, invoiceToDelete);
         setInvoices(prev => prev.filter(inv => inv.id !== invoiceToDelete));
-        setSelectedInvoiceIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(invoiceToDelete!);
-            return newSet;
-        });
     } catch (error) {
         console.error("Failed to delete invoice:", error);
     } finally {
         setInvoiceToDelete(null);
-    }
-  };
-
-  const handleDeleteSelectedInvoices = async () => {
-    if (selectedInvoiceIds.size === 0) return;
-    // FIX: Use spread syntax to correctly infer type as string[]
-    const idsToDelete = [...selectedInvoiceIds];
-    try {
-        await dbService.deleteMultipleInvoicesForUser(user.token, idsToDelete);
-        setInvoices(prev => prev.filter(inv => !idsToDelete.includes(inv.id!)));
-        setSelectedInvoiceIds(new Set());
-    } catch (error) {
-        console.error("Failed to delete selected invoices:", error);
-    } finally {
-        setIsBulkDeleteConfirmOpen(false);
     }
   };
   
@@ -411,13 +316,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         const matchesStatus = statusFilter === 'all' || invoice.paymentStatus === statusFilter;
 
-        const min = minAmount ? parseFloat(minAmount) : -Infinity;
-        const max = maxAmount ? parseFloat(maxAmount) : Infinity;
-        const matchesAmount = invoice.totalAmount >= min && invoice.totalAmount <= max;
-
-        return matchesSearch && matchesDate && matchesStatus && matchesAmount;
+        return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter, minAmount, maxAmount]);
+  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter]);
   
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>({
       invoiceNumber: true, invoiceDate: true, vendorName: true, customerName: true,
@@ -429,8 +330,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setDateFrom('');
     setDateTo('');
     setStatusFilter('all');
-    setMinAmount('');
-    setMaxAmount('');
+  };
+
+  const handleUploadFromScanner = () => {
+    setIsScannerModalOpen(false);
+    fileInputRef.current?.click();
   };
 
   const formatCurrency = useCallback((amount: number) => {
@@ -441,23 +345,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const totalAmount = useMemo(() => invoices.reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
   const paidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'paid').length, [invoices]);
   const unpaidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'unpaid').length, [invoices]);
-
-  // --- AI KPI Generator Logic ---
-  const handleGenerateKpi = async (query: string) => {
-    if (!query.trim() || filteredInvoices.length === 0) return;
-    setIsCalculatingKpi(true);
-    setKpiResult(null);
-    setKpiError('');
-    try {
-      const response = await geminiService.calculateKpiFromInvoices(query, filteredInvoices);
-      setKpiResult(response.result);
-    } catch (error: any) {
-      setKpiError(translations.calculationError);
-      console.error(error);
-    } finally {
-      setIsCalculatingKpi(false);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -470,37 +357,46 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
 
-        <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
+        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
 
             {isProcessing ? (
                 <ProcessingLoader translations={translations} />
             ) : (
-                <div className="flex flex-col md:flex-row items-stretch gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                      <UploadOptionCard
                         onClick={() => fileInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>}
                         title={translations.uploadImageOrPDF}
                         subtitle={translations.chooseFile}
-                        animationClass='animate-float [animation-delay:-2s]'
                     />
                     <input
                         ref={fileInputRef} type="file" onChange={handleFileChange}
                         accept="application/pdf,image/jpeg,image/png,image/webp"
                         className="hidden"
-                        multiple
                     />
                      <UploadOptionCard
                         onClick={handleOpenCamera}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                         title={translations.scanWithCamera}
                         subtitle={translations.or}
-                        animationClass='animate-float'
+                    />
+                    <UploadOptionCard
+                        onClick={() => setIsScannerModalOpen(true)}
+                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3.75v3.75m-3.75-3.75v3.75m-3.75-3.75h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v7.5A2.25 2.25 0 004.5 16.5z" /></svg>}
+                        title={translations.scanWithScanner}
+                        subtitle={translations.useYourScanner}
+                    />
+                    <UploadOptionCard
+                        onClick={() => setIsManualEntryOpen(true)}
+                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>}
+                        title={translations.addManually}
+                        subtitle={translations.manualInvoiceEntry}
                     />
                 </div>
             )}
-            {processingError && newlyExtractedInvoices.length === 0 && <p className="mt-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
+            {processingError && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
@@ -523,145 +419,59 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             </div>
         )}
 
-        {newlyExtractedInvoices.length > 0 && !isProcessing && (
-            <section className="p-6 bg-green-50/50 dark:bg-green-900/20 backdrop-blur-lg rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
+        {newlyExtractedInvoice && !isProcessing && (
+            <section className="p-6 bg-green-50/50 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoices} ({newlyExtractedInvoices.length})</h2>
+                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => { setNewlyExtractedInvoices([]); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors">{translations.clearAll}</button>
-                        <button 
-                            onClick={handleSaveAllInvoices}
-                            disabled={isSaving}
-                            className="px-4 py-2 w-28 flex justify-center items-center rounded-lg text-white font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all shadow-md disabled:from-green-400 disabled:to-emerald-500 disabled:cursor-not-allowed"
-                        >
-                            {isSaving ? <Spinner /> : translations.saveAllInvoices}
-                        </button>
+                        <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
+                        <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
                     </div>
                 </div>
-                {processingError && <p className="mb-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
                 <InvoiceTable 
-                    invoices={newlyExtractedInvoices} translations={translations} currency={currency} language={lang}
+                    invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
-                    selectedInvoiceIds={new Set()}
-                    onSelectionChange={() => {}}
                 />
             </section>
         )}
 
-        <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
-            <h2 className="text-xl font-semibold mb-4">{translations.aiKpiGeneratorTitle}</h2>
-            <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                    type="text"
-                    value={kpiQuery}
-                    onChange={(e) => setKpiQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateKpi(kpiQuery)}
-                    placeholder={translations.kpiQueryPlaceholder}
-                    className="flex-grow px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    disabled={isCalculatingKpi || filteredInvoices.length === 0}
-                />
-                <button
-                    onClick={() => handleGenerateKpi(kpiQuery)}
-                    disabled={isCalculatingKpi || !kpiQuery.trim() || filteredInvoices.length === 0}
-                    className="px-6 py-2 w-full sm:w-auto flex justify-center items-center rounded-lg text-white font-semibold bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 transition-all shadow-md disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed"
-                >
-                    {isCalculatingKpi ? <Spinner /> : translations.generateKpi}
-                </button>
-            </div>
-
-            {(kpiResult || isCalculatingKpi || kpiError) && (
-                <div className="mt-4 p-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">{translations.kpiResultTitle}</h3>
-                {isCalculatingKpi && <p className="text-slate-500 dark:text-slate-400">{translations.calculatingKpi}</p>}
-                {kpiError && <p className="text-red-500 dark:text-red-400">{kpiError}</p>}
-                {kpiResult && !isCalculatingKpi && <p className="text-slate-800 dark:text-slate-200 font-medium">{kpiResult}</p>}
-                </div>
-            )}
-        </section>
-
-        <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
+        <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                {selectedInvoiceIds.size > 0 ? (
-                    <div className="flex items-center gap-4">
-                        <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-300">
-                            {translations.countSelected.replace('{count}', String(selectedInvoiceIds.size))}
-                        </span>
-                        <button 
-                            onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                            className="px-4 py-2 flex items-center gap-2 rounded-lg text-white font-medium bg-red-600 hover:bg-red-700 transition-colors shadow-md"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
-                            {translations.deleteSelected}
-                        </button>
-                    </div>
-                ) : (
-                    <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
-                )}
-                <div className="flex items-center gap-4">
-                  {viewMode === 'list' && (
+                <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
+                <div className="flex flex-wrap items-center gap-4">
+                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
                     <div className="relative" ref={colsDropdownRef}>
-                        <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
+                        <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
                             {translations.columns}
                         </button>
                         {isColsDropdownOpen && (
-                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-md ring-1 ring-black ring-opacity-5 z-20 p-2">
+                            <div className="absolute top-full end-0 mt-2 w-56 rounded-xl shadow-2xl bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 z-20 p-2">
                                 {ALL_COLUMNS.filter(key => key !== 'actions').map(colKey => (
-                                    <label key={colKey} className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-md cursor-pointer">
-                                        <input type="checkbox" checked={columnVisibility[colKey]} onChange={() => setColumnVisibility(prev => ({...prev, [colKey]: !prev[colKey]}))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-transparent" />
+                                    <label key={colKey} className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md cursor-pointer">
+                                        <input type="checkbox" checked={columnVisibility[colKey]} onChange={() => setColumnVisibility(prev => ({...prev, [colKey]: !prev[colKey]}))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
                                         {translations[colKey] || colKey}
                                     </label>
                                 ))}
                             </div>
                         )}
                     </div>
-                  )}
-                  <ViewModeToggle value={viewMode} onChange={setViewMode} translations={translations} />
+                    <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
                 </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-auto flex-grow px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input
-                        type="number"
-                        placeholder={translations.minAmount}
-                        value={minAmount}
-                        onChange={e => setMinAmount(e.target.value)}
-                        className="w-full sm:w-28 px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        aria-label={translations.minAmount}
-                    />
-                    <input
-                        type="number"
-                        placeholder={translations.maxAmount}
-                        value={maxAmount}
-                        onChange={e => setMaxAmount(e.target.value)}
-                        className="w-full sm:w-28 px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        aria-label={translations.maxAmount}
-                    />
-                    <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
-                    <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
             </div>
             
             {invoices.length > 0 ? (
-                viewMode === 'list' ? (
-                  <InvoiceTable 
-                      invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                      onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                      onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
-                      columnVisibility={columnVisibility}
-                      selectedInvoiceIds={selectedInvoiceIds}
-                      onSelectionChange={setSelectedInvoiceIds}
-                  />
-                ) : (
-                  <InvoiceGrid
-                      invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                      onInvoiceClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                      onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
-                  />
-                )
+                <InvoiceTable 
+                    invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                    onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
+                    columnVisibility={columnVisibility}
+                />
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
@@ -670,13 +480,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         <ConfirmationModal 
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}
             title={translations.deleteConfirmTitle} message={translations.deleteConfirmMessage}
-            confirmText={translations.delete} cancelText={translations.cancel}
-        />
-
-        <ConfirmationModal 
-            isOpen={isBulkDeleteConfirmOpen} onClose={() => setIsBulkDeleteConfirmOpen(false)} onConfirm={handleDeleteSelectedInvoices}
-            title={translations.deleteConfirmTitle} 
-            message={translations.deleteSelectedConfirmMessage.replace('{count}', String(selectedInvoiceIds.size))}
             confirmText={translations.delete} cancelText={translations.cancel}
         />
 
@@ -694,6 +497,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 translations={translations}
             />
         )}
+        <ManualInvoiceModal
+            isOpen={isManualEntryOpen}
+            onClose={() => setIsManualEntryOpen(false)}
+            onSave={handleSaveManualInvoice}
+            translations={translations}
+            currency={currency}
+            language={lang}
+        />
+        <ScannerInstructionsModal
+            isOpen={isScannerModalOpen}
+            onClose={() => setIsScannerModalOpen(false)}
+            onUpload={handleUploadFromScanner}
+            translations={translations}
+        />
     </div>
   );
 };
