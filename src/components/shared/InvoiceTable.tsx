@@ -195,7 +195,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
         <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
           {invoices.map((invoice, index) => (
             <tr 
-              key={invoice.id || invoice.invoiceNumber} 
+              key={invoice.id || invoice.clientId || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
               className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10`}
             >

@@ -114,7 +114,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [processingError, setProcessingError] = useState('');
-  const [newlyExtractedInvoice, setNewlyExtractedInvoice] = useState<Invoice | null>(null);
+  const [newlyExtractedInvoices, setNewlyExtractedInvoices] = useState<Invoice[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -138,6 +138,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState('');
   
+  // AI KPI Generator State
+  const [kpiQuery, setKpiQuery] = useState('');
+  const [kpiResult, setKpiResult] = useState<string | null>(null);
+  const [kpiSuggestions, setKpiSuggestions] = useState<string[]>([]);
+  const [isCalculatingKpi, setIsCalculatingKpi] = useState(false);
+  const [isSuggestingKpis, setIsSuggestingKpis] = useState(false);
+  const [kpiError, setKpiError] = useState('');
+
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (colsDropdownRef.current && !colsDropdownRef.current.contains(event.target as Node)) {
@@ -148,40 +157,52 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const processFile = async (file: File) => {
-    setIsProcessing(true);
-    setProcessingError('');
-    setNewlyExtractedInvoice(null);
-    
-    try {
+  const processSingleFile = async (file: File): Promise<Invoice> => {
       const base64String = await fileToBase64(file);
       const pureBase64 = base64String.split(',')[1];
       
       const extractedData = await geminiService.extractInvoiceDataFromFile(pureBase64, file.type);
       
-      setNewlyExtractedInvoice({
+      return {
         ...extractedData,
+        clientId: `${Date.now()}-${Math.random()}`, // Add a unique client ID for list rendering
         sourceFileBase64: pureBase64,
         sourceFileMimeType: file.type,
-      });
-
-    } catch (error: any) {
-      setProcessingError(translations.extractionError);
-      console.error(error);
-    } finally {
-      setIsProcessing(false);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+      };
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setProcessingError('');
-      setNewlyExtractedInvoice(null);
-      processFile(file);
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessing(true);
+    setProcessingError('');
+    setNewlyExtractedInvoices([]);
+
+    const processingPromises = Array.from(files).map(processSingleFile);
+    const results = await Promise.allSettled(processingPromises);
+
+    const successfulInvoices: Invoice[] = [];
+    let failureCount = 0;
+
+    results.forEach(result => {
+        if (result.status === 'fulfilled') {
+            successfulInvoices.push(result.value);
+        } else {
+            failureCount++;
+            console.error("Extraction failed for a file:", result.reason);
+        }
+    });
+
+    setNewlyExtractedInvoices(successfulInvoices);
+
+    if (failureCount > 0) {
+        setProcessingError(translations.extractionErrors.replace('{count}', String(failureCount)));
+    }
+
+    setIsProcessing(false);
+    if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset file input
     }
   };
   
@@ -255,27 +276,48 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         .then(blob => {
           const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
           handleCloseCamera();
-          processFile(file);
+          // Wrap in an array to use the multi-file handler
+          handleFileChange({ target: { files: [file] } } as any);
         });
     }
   };
   // --- End Camera Logic ---
 
-  const handleSaveInvoice = async () => {
-    if (!newlyExtractedInvoice) return;
+  const handleSaveAllInvoices = async () => {
+    if (newlyExtractedInvoices.length === 0) return;
+
     setIsSaving(true);
     setProcessingError('');
+
+    const savePromises = newlyExtractedInvoices.map(invoice => 
+        dbService.saveInvoiceForUser(user, invoice)
+    );
+
+    const results = await Promise.allSettled(savePromises);
     
-    try {
-        const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
-        setInvoices(prevInvoices => [{...savedInvoice, uploaderEmail: user.email }, ...prevInvoices]);
-        setNewlyExtractedInvoice(null);
-    } catch (error: any) {
-        console.error("Failed to save invoice:", error);
-        setProcessingError(`${translations.saveError}${error.message}`);
-    } finally {
-        setIsSaving(false);
+    const savedInvoices: Invoice[] = [];
+    const failedInvoices: Invoice[] = [];
+    
+    results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+            savedInvoices.push({ ...result.value, uploaderEmail: user.email });
+        } else {
+            console.error("Failed to save invoice:", result.reason);
+            failedInvoices.push(newlyExtractedInvoices[index]);
+        }
+    });
+    
+    if (savedInvoices.length > 0) {
+        setInvoices(prev => [...savedInvoices, ...prev]);
     }
+    
+    setNewlyExtractedInvoices(failedInvoices); // Keep failed invoices for review
+
+    if (failedInvoices.length > 0) {
+        setProcessingError(translations.saveAllError);
+    }
+    
+    setIsSaving(false);
   };
 
   const handleDeleteInvoice = async () => {
@@ -366,6 +408,39 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const paidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'paid').length, [invoices]);
   const unpaidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'unpaid').length, [invoices]);
 
+  // --- AI KPI Generator Logic ---
+  const handleGenerateKpi = async (query: string) => {
+    if (!query.trim() || filteredInvoices.length === 0) return;
+    setIsCalculatingKpi(true);
+    setKpiResult(null);
+    setKpiError('');
+    try {
+      const response = await geminiService.calculateKpiFromInvoices(query, filteredInvoices);
+      setKpiResult(response.result);
+    } catch (error: any) {
+      setKpiError(translations.calculationError);
+      console.error(error);
+    } finally {
+      setIsCalculatingKpi(false);
+    }
+  };
+
+  const handleSuggestKpis = async () => {
+      if (filteredInvoices.length === 0) return;
+      setIsSuggestingKpis(true);
+      setKpiSuggestions([]);
+      setKpiError('');
+      try {
+          const response = await geminiService.suggestKpis(filteredInvoices);
+          setKpiSuggestions(response.suggestions);
+      } catch (error: any) {
+          setKpiError(translations.suggestionError);
+          console.error(error);
+      } finally {
+          setIsSuggestingKpis(false);
+      }
+  };
+
   return (
     <div className="space-y-8">
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{translations.dashboardTitle}</h1>
@@ -396,6 +471,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                         ref={fileInputRef} type="file" onChange={handleFileChange}
                         accept="application/pdf,image/jpeg,image/png,image/webp"
                         className="hidden"
+                        multiple
                     />
                      <UploadOptionCard
                         onClick={handleOpenCamera}
@@ -406,7 +482,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 </div>
             )}
-            {processingError && !newlyExtractedInvoice && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
+            {processingError && newlyExtractedInvoices.length === 0 && <p className="mt-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
@@ -429,29 +505,77 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             </div>
         )}
 
-        {newlyExtractedInvoice && !isProcessing && (
+        {newlyExtractedInvoices.length > 0 && !isProcessing && (
             <section className="p-6 bg-green-50/50 dark:bg-green-900/20 backdrop-blur-lg rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
+                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoices} ({newlyExtractedInvoices.length})</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => { setNewlyExtractedInvoice(null); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
+                        <button onClick={() => { setNewlyExtractedInvoices([]); setProcessingError(''); }} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors">{translations.clearAll}</button>
                         <button 
-                            onClick={handleSaveInvoice}
+                            onClick={handleSaveAllInvoices}
                             disabled={isSaving}
                             className="px-4 py-2 w-28 flex justify-center items-center rounded-lg text-white font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all shadow-md disabled:from-green-400 disabled:to-emerald-500 disabled:cursor-not-allowed"
                         >
-                            {isSaving ? <Spinner /> : translations.saveInvoice}
+                            {isSaving ? <Spinner /> : translations.saveAllInvoices}
                         </button>
                     </div>
                 </div>
                 {processingError && <p className="mb-4 text-sm text-center font-medium text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">{processingError}</p>}
                 <InvoiceTable 
-                    invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
+                    invoices={newlyExtractedInvoices} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
                 />
             </section>
         )}
+
+        <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
+            <h2 className="text-xl font-semibold mb-4">{translations.aiKpiGeneratorTitle}</h2>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                    type="text"
+                    value={kpiQuery}
+                    onChange={(e) => setKpiQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateKpi(kpiQuery)}
+                    placeholder={translations.kpiQueryPlaceholder}
+                    className="flex-grow px-4 py-2 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={isCalculatingKpi || filteredInvoices.length === 0}
+                />
+                <button
+                    onClick={() => handleGenerateKpi(kpiQuery)}
+                    disabled={isCalculatingKpi || !kpiQuery.trim() || filteredInvoices.length === 0}
+                    className="px-6 py-2 w-full sm:w-auto flex justify-center items-center rounded-lg text-white font-semibold bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 transition-all shadow-md disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed"
+                >
+                    {isCalculatingKpi ? <Spinner /> : translations.generateKpi}
+                </button>
+                <button
+                    onClick={handleSuggestKpis}
+                    disabled={isSuggestingKpis || filteredInvoices.length === 0}
+                    className="px-6 py-2 w-full sm:w-auto flex justify-center items-center rounded-lg text-indigo-600 dark:text-indigo-300 font-semibold bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isSuggestingKpis ? <Spinner /> : translations.suggestKpis}
+                </button>
+            </div>
+
+            {kpiSuggestions.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                {kpiSuggestions.map((suggestion, index) => (
+                    <button key={index} onClick={() => { setKpiQuery(suggestion); handleGenerateKpi(suggestion); }} className="px-3 py-1.5 text-sm bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors">
+                    {suggestion}
+                    </button>
+                ))}
+                </div>
+            )}
+
+            {(kpiResult || isCalculatingKpi || kpiError) && (
+                <div className="mt-4 p-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">{translations.kpiResultTitle}</h3>
+                {isCalculatingKpi && <p className="text-slate-500 dark:text-slate-400">{translations.calculatingKpi}</p>}
+                {kpiError && <p className="text-red-500 dark:text-red-400">{kpiError}</p>}
+                {kpiResult && !isCalculatingKpi && <p className="text-slate-800 dark:text-slate-200 font-medium">{kpiResult}</p>}
+                </div>
+            )}
+        </section>
 
         <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">

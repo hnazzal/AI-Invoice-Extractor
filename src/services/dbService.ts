@@ -136,6 +136,8 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         invoice_date: normalizeDate(invoice.invoiceDate),
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
+        source_file_base_64: invoice.sourceFileBase64,
+        source_file_mime_type: invoice.sourceFileMimeType,
     };
 
     // Post the master invoice record. `return=minimal` is efficient and avoids RLS select issues.

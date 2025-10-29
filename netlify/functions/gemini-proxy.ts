@@ -22,11 +22,10 @@ interface Invoice {
   sourceFileMimeType?: string;
 }
 
-// This is a serverless function, so the API key is securely accessed from environment variables on the server.
-// Netlify makes variables set in the UI available via process.env.
 const API_KEY = process.env.VITE_API_KEY;
 
-const responseSchema = {
+// --- Schemas for different AI tasks ---
+const extractSchema = {
   type: Type.OBJECT,
   properties: {
     invoiceNumber: { type: Type.STRING, description: "The invoice identification number." },
@@ -52,90 +51,129 @@ const responseSchema = {
   required: ["invoiceNumber", "vendorName", "customerName", "invoiceDate", "totalAmount", "items"]
 };
 
+const calculateSchema = {
+    type: Type.OBJECT,
+    properties: {
+        result: { type: Type.STRING, description: "The calculated result of the KPI, as a single-value string (e.g., a number, a sentence, or a name). Be concise." }
+    },
+    required: ["result"]
+};
+
+const suggestSchema = {
+    type: Type.OBJECT,
+    properties: {
+        suggestions: {
+            type: Type.ARRAY,
+            description: "A list of 3 insightful and relevant KPI questions that can be answered from the provided data.",
+            items: { type: Type.STRING }
+        }
+    },
+    required: ["suggestions"]
+};
+
+// --- Handlers for different AI tasks ---
+
+const handleExtract = async (ai: GoogleGenAI, body: any) => {
+    const { fileBase64, mimeType } = body;
+    if (!fileBase64 || !mimeType) throw new Error('Missing fileBase64 or mimeType for extract task.');
+
+    const filePart = { inlineData: { mimeType, data: fileBase64 } };
+    const textPart = { text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible." };
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [textPart, filePart] },
+        config: { responseMimeType: "application/json", responseSchema: extractSchema },
+    });
+
+    const parsedJson = JSON.parse(response.text.trim());
+    const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
+        invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '', vendorName: parsedJson.vendorName || '',
+        customerName: parsedJson.customerName || '', invoiceDate: parsedJson.invoiceDate || '',
+        totalAmount: parsedJson.totalAmount || 0,
+        items: Array.isArray(parsedJson.items) ? parsedJson.items.map((item: any) => ({
+            description: item.description || '', quantity: item.quantity || 0,
+            unitPrice: item.unitPrice || 0, total: item.total || 0,
+        })) : [],
+        paymentStatus: 'unpaid', sourceFileBase64: fileBase64, sourceFileMimeType: mimeType,
+    };
+    if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
+        throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
+    }
+    return sanitizedData;
+};
+
+const handleCalculate = async (ai: GoogleGenAI, body: any) => {
+    const { query, invoices } = body;
+    if (!query || !invoices) throw new Error('Missing query or invoices for calculate task.');
+
+    const prompt = `Given the following JSON data of invoices, answer this question: "${query}".\n\nProvide a direct, concise answer.\n\nData: ${JSON.stringify(invoices, null, 2)}`;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+        config: { responseMimeType: "application/json", responseSchema: calculateSchema },
+    });
+    return JSON.parse(response.text.trim());
+};
+
+const handleSuggest = async (ai: GoogleGenAI, body: any) => {
+    const { invoices } = body;
+    if (!invoices) throw new Error('Missing invoices for suggest task.');
+
+    const prompt = `Based on this sample of invoice data, generate 3 distinct and insightful questions a user might ask. Frame them as simple key performance indicators (KPIs). For example: "What is the average invoice total?" or "Which vendor has the most invoices?". \n\nData: ${JSON.stringify(invoices, null, 2)}`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+        config: { responseMimeType: "application/json", responseSchema: suggestSchema },
+    });
+    return JSON.parse(response.text.trim());
+};
+
+
 const handler: Handler = async (event: HandlerEvent) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
-
     if (!API_KEY) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Gemini service is not configured on the server. VITE_API_KEY is missing." }),
-        };
+        return { statusCode: 500, body: JSON.stringify({ error: "Gemini service is not configured on the server. VITE_API_KEY is missing." }) };
     }
 
     try {
-        const { fileBase64, mimeType } = JSON.parse(event.body || '{}');
-
-        if (!fileBase64 || !mimeType) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Missing fileBase64 or mimeType in request body.' }),
-            };
-        }
-
+        const body = JSON.parse(event.body || '{}');
+        const { task } = body;
+        
         const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-        const filePart = {
-            inlineData: {
-                mimeType: mimeType,
-                data: fileBase64,
-            },
-        };
-
-        const textPart = {
-            text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible."
-        };
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [textPart, filePart] },
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
-            },
-        });
-
-        let jsonText = response.text.trim();
-        const jsonMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
-        if (jsonMatch && jsonMatch[2]) {
-            jsonText = jsonMatch[2];
+        let responseData;
+        switch (task) {
+            case 'extract':
+                responseData = await handleExtract(ai, body);
+                break;
+            case 'calculate':
+                responseData = await handleCalculate(ai, body);
+                break;
+            case 'suggest':
+                responseData = await handleSuggest(ai, body);
+                break;
+            default:
+                return { statusCode: 400, body: JSON.stringify({ error: 'Invalid task specified.' }) };
         }
-        const parsedJson = JSON.parse(jsonText);
-
-        const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
-            invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '',
-            vendorName: parsedJson.vendorName || '',
-            customerName: parsedJson.customerName || '',
-            invoiceDate: parsedJson.invoiceDate || '',
-            totalAmount: parsedJson.totalAmount || 0,
-            items: Array.isArray(parsedJson.items) ? parsedJson.items.map((item: any) => ({
-                description: item.description || '',
-                quantity: item.quantity || 0,
-                unitPrice: item.unitPrice || 0,
-                total: item.total || 0,
-            })) : [],
-            paymentStatus: 'unpaid',
-            sourceFileBase64: fileBase64,
-            sourceFileMimeType: mimeType,
-        };
-
-        if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
-            throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
-        }
-
+        
         return {
             statusCode: 200,
-            body: JSON.stringify(sanitizedData),
+            body: JSON.stringify(responseData),
             headers: { 'Content-Type': 'application/json' },
         };
-
+        
     } catch (error: any) {
         console.error("Error in Gemini proxy function:", error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Failed to parse or validate data from the AI service.", details: error.message }),
-        };
+        // Sanitize error message to avoid exposing sensitive details
+        const message = error.message?.includes("Core invoice details") 
+            ? error.message 
+            : "Failed to process the request with the AI service.";
+        return { statusCode: 500, body: JSON.stringify({ error: message, details: error.message })};
     }
 };
 
