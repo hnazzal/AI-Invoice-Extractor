@@ -107,8 +107,8 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   totalAmount: dbInvoice.total_amount,
   paymentStatus: dbInvoice.status || 'unpaid',
   items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.source_file_base_64,
-  sourceFileMimeType: dbInvoice.source_file_mime_type,
+  sourceFileBase64: dbInvoice.file_base64,
+  sourceFileMimeType: dbInvoice.file_mime_type,
 });
 
 
@@ -136,8 +136,8 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         invoice_date: normalizeDate(invoice.invoiceDate),
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
-        source_file_base_64: invoice.sourceFileBase64,
-        source_file_mime_type: invoice.sourceFileMimeType,
+        file_base64: invoice.sourceFileBase64,
+        file_mime_type: invoice.sourceFileMimeType,
     };
 
     // Post the master invoice record. `return=minimal` is efficient and avoids RLS select issues.
