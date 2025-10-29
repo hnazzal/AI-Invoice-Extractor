@@ -123,8 +123,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
@@ -143,6 +145,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [kpiResult, setKpiResult] = useState<string | null>(null);
   const [isCalculatingKpi, setIsCalculatingKpi] = useState(false);
   const [kpiError, setKpiError] = useState('');
+
+  // Clear selection when filters or view mode change to avoid accidental operations on hidden items
+  useEffect(() => {
+    setSelectedInvoiceIds(new Set());
+  }, [searchTerm, dateFrom, dateTo, statusFilter, minAmount, maxAmount, viewMode]);
 
 
   useEffect(() => {
@@ -333,10 +340,30 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     try {
         await dbService.deleteInvoiceForUser(user.token, invoiceToDelete);
         setInvoices(prev => prev.filter(inv => inv.id !== invoiceToDelete));
+        setSelectedInvoiceIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(invoiceToDelete!);
+            return newSet;
+        });
     } catch (error) {
         console.error("Failed to delete invoice:", error);
     } finally {
         setInvoiceToDelete(null);
+    }
+  };
+
+  const handleDeleteSelectedInvoices = async () => {
+    if (selectedInvoiceIds.size === 0) return;
+    // FIX: Use spread syntax to correctly infer type as string[]
+    const idsToDelete = [...selectedInvoiceIds];
+    try {
+        await dbService.deleteMultipleInvoicesForUser(user.token, idsToDelete);
+        setInvoices(prev => prev.filter(inv => !idsToDelete.includes(inv.id!)));
+        setSelectedInvoiceIds(new Set());
+    } catch (error) {
+        console.error("Failed to delete selected invoices:", error);
+    } finally {
+        setIsBulkDeleteConfirmOpen(false);
     }
   };
   
@@ -516,6 +543,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     invoices={newlyExtractedInvoices} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
+                    selectedInvoiceIds={new Set()}
+                    onSelectionChange={() => {}}
                 />
             </section>
         )}
@@ -553,7 +582,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
         <section className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
+                {selectedInvoiceIds.size > 0 ? (
+                    <div className="flex items-center gap-4">
+                        <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-300">
+                            {translations.countSelected.replace('{count}', String(selectedInvoiceIds.size))}
+                        </span>
+                        <button 
+                            onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                            className="px-4 py-2 flex items-center gap-2 rounded-lg text-white font-medium bg-red-600 hover:bg-red-700 transition-colors shadow-md"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                            {translations.deleteSelected}
+                        </button>
+                    </div>
+                ) : (
+                    <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
+                )}
                 <div className="flex items-center gap-4">
                   {viewMode === 'list' && (
                     <div className="relative" ref={colsDropdownRef}>
@@ -608,6 +652,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                       onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
                       onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                       columnVisibility={columnVisibility}
+                      selectedInvoiceIds={selectedInvoiceIds}
+                      onSelectionChange={setSelectedInvoiceIds}
                   />
                 ) : (
                   <InvoiceGrid
@@ -624,6 +670,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         <ConfirmationModal 
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}
             title={translations.deleteConfirmTitle} message={translations.deleteConfirmMessage}
+            confirmText={translations.delete} cancelText={translations.cancel}
+        />
+
+        <ConfirmationModal 
+            isOpen={isBulkDeleteConfirmOpen} onClose={() => setIsBulkDeleteConfirmOpen(false)} onConfirm={handleDeleteSelectedInvoices}
+            title={translations.deleteConfirmTitle} 
+            message={translations.deleteSelectedConfirmMessage.replace('{count}', String(selectedInvoiceIds.size))}
             confirmText={translations.delete} cancelText={translations.cancel}
         />
 

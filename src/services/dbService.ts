@@ -213,3 +213,15 @@ export const deleteInvoiceForUser = async (token: string, invoiceDbId: string): 
         }
     });
 };
+
+export const deleteMultipleInvoicesForUser = async (token: string, invoiceDbIds: string[]): Promise<void> => {
+    if (invoiceDbIds.length === 0) return;
+    
+    // Supabase allows using the `in` operator for bulk deletes.
+    await apiFetch(`/rest/v1/invoices?id=in.(${invoiceDbIds.join(',')})`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        }
+    });
+};

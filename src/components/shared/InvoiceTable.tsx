@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Invoice, Translations, Currency, Language } from '../../types';
 
 interface InvoiceTableProps {
@@ -11,12 +11,16 @@ interface InvoiceTableProps {
   onViewClick: (invoice: Invoice) => void;
   onTogglePaymentStatus: (invoiceId: string) => void;
   columnVisibility: Record<string, boolean>;
+  selectedInvoiceIds: Set<string>;
+  onSelectionChange: (selectedIds: Set<string>) => void;
 }
 
 const MIN_COLUMN_WIDTH = 80;
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility, selectedInvoiceIds, onSelectionChange }) => {
   
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
   const formatCurrency = (amount: number) => {
       const locale = language === 'ar' ? 'ar-JO' : 'en-US';
       return new Intl.NumberFormat(locale, {
@@ -26,6 +30,42 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
         maximumFractionDigits: 2,
       }).format(amount);
   };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSelectedIds = new Set<string>();
+    if (e.target.checked) {
+        invoices.forEach(invoice => {
+            if (invoice.id) newSelectedIds.add(invoice.id);
+        });
+    }
+    onSelectionChange(newSelectedIds);
+  };
+
+  const handleSelectOne = (invoiceId: string) => {
+      const newSelectedIds = new Set(selectedInvoiceIds);
+      if (newSelectedIds.has(invoiceId)) {
+          newSelectedIds.delete(invoiceId);
+      } else {
+          newSelectedIds.add(invoiceId);
+      }
+      onSelectionChange(newSelectedIds);
+  };
+
+  const isAllSelected = useMemo(() => {
+    const visibleInvoiceIds = invoices.map(inv => inv.id).filter(Boolean);
+    return visibleInvoiceIds.length > 0 && visibleInvoiceIds.every(id => selectedInvoiceIds.has(id!));
+  }, [invoices, selectedInvoiceIds]);
+
+  const isIndeterminate = useMemo(() => {
+    return selectedInvoiceIds.size > 0 && !isAllSelected;
+  }, [selectedInvoiceIds, isAllSelected]);
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
 
   const canPerformActions = !!onDeleteClick && !!onInvoiceDoubleClick;
 
@@ -155,7 +195,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
   
   const grandTotal = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
-  if (!invoices || invoices.length === 0 || visibleColumns.length === 0) {
+  if (!invoices || invoices.length === 0 || (visibleColumns.length === 0 && canPerformActions)) {
     return null;
   }
   
@@ -168,12 +208,25 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-slate-200/50 dark:divide-slate-700/50" style={{ tableLayout: 'fixed' }}>
         <colgroup>
+          {canPerformActions && <col style={{ width: '48px' }} />}
           {visibleColumns.map(col => (
             <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />
           ))}
         </colgroup>
         <thead className="bg-white/10 dark:bg-slate-700/10">
           <tr>
+            {canPerformActions && (
+              <th scope="col" className="px-6 py-4">
+                <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-500 text-indigo-600 focus:ring-indigo-500 bg-transparent"
+                    ref={headerCheckboxRef}
+                    checked={isAllSelected}
+                    onChange={handleSelectAll}
+                    aria-label="Select all invoices"
+                />
+              </th>
+            )}
             {visibleColumns.map(col => (
                <th 
                 key={col.key} 
@@ -197,10 +250,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             <tr 
               key={invoice.id || invoice.clientId || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
-              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10`}
+              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10 ${selectedInvoiceIds.has(invoice.id!) ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
             >
+              {canPerformActions && (
+                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    {invoice.id && (
+                        <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 dark:border-slate-500 text-indigo-600 focus:ring-indigo-500 bg-transparent"
+                            checked={selectedInvoiceIds.has(invoice.id)}
+                            onChange={() => handleSelectOne(invoice.id!)}
+                            aria-labelledby={`invoice-vendor-${invoice.id}`}
+                        />
+                    )}
+                </td>
+              )}
               {visibleColumns.map(col => (
-                <td key={col.key} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 text-${col.align}`}>
+                <td key={col.key} id={col.key === 'vendorName' ? `invoice-vendor-${invoice.id}` : undefined} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 text-${col.align}`}>
                   {renderCellContent(invoice, col.key)}
                 </td>
               ))}
@@ -209,6 +275,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
         </tbody>
         <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-white/20 dark:bg-white/10 font-semibold">
           <tr>
+             {canPerformActions && <td className="px-6 py-4"></td>}
              {summaryColSpan > 0 && (
                 <td colSpan={summaryColSpan} className="px-6 py-4 text-start text-sm text-slate-700 dark:text-slate-200">
                     {`${translations.totalInvoices}: ${invoices.length}`}
