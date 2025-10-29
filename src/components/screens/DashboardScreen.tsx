@@ -295,12 +295,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     
     const savedInvoices: Invoice[] = [];
     const failedInvoices: Invoice[] = [];
+    let firstErrorReason: string | null = null;
     
     results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
             savedInvoices.push({ ...result.value, uploaderEmail: user.email });
         } else {
             console.error("Failed to save invoice:", result.reason);
+            if (firstErrorReason === null) {
+              // Extract the message from the error object
+              firstErrorReason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            }
             failedInvoices.push(newlyExtractedInvoices[index]);
         }
     });
@@ -312,7 +317,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setNewlyExtractedInvoices(failedInvoices); // Keep failed invoices for review
 
     if (failedInvoices.length > 0) {
-        setProcessingError(translations.saveAllError);
+        const baseMessage = translations.saveAllError;
+        const finalMessage = firstErrorReason 
+            ? `${baseMessage} ${translations.reason}: ${firstErrorReason}`
+            : baseMessage;
+        setProcessingError(finalMessage);
     }
     
     setIsSaving(false);
