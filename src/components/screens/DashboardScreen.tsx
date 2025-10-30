@@ -101,8 +101,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [invoiceFileToView, setInvoiceFileToView] = useState<{ base64: string; mimeType: string } | null>(null);
   const [isColsDropdownOpen, setIsColsDropdownOpen] = useState(false);
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
-  const colsDropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(new Set<string>());
+  const [isDeleteSelectedConfirmOpen, setIsDeleteSelectedConfirmOpen] = useState(false);
 
+  const colsDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -269,6 +271,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         setInvoiceToDelete(null);
     }
   };
+
+  const handleDeleteSelected = async () => {
+    if (selectedInvoiceIds.size === 0) return;
+
+    try {
+        await dbService.deleteMultipleInvoicesForUser(user.token, Array.from(selectedInvoiceIds));
+        setInvoices(prev => prev.filter(inv => !inv.id || !selectedInvoiceIds.has(inv.id)));
+        setSelectedInvoiceIds(new Set()); // Clear selection
+    } catch (error) {
+        console.error("Failed to delete selected invoices:", error);
+    } finally {
+        setIsDeleteSelectedConfirmOpen(false);
+    }
+};
   
   const handleTogglePaymentStatus = async (invoiceId: string) => {
     const originalInvoices = [...invoices];
@@ -328,6 +344,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setDateFrom('');
     setDateTo('');
     setStatusFilter('all');
+    setSelectedInvoiceIds(new Set());
   };
 
   const formatCurrency = useCallback((amount: number) => {
@@ -409,7 +426,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         {newlyExtractedInvoice && !isProcessing && (
             <section className="p-6 bg-green-50/50 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoice}</h2>
+                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoices}</h2>
                     <div className="flex gap-2">
                         <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
                         <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
@@ -419,6 +436,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
                     columnVisibility={{ ...columnVisibility, actions: false, uploader: false }}
+                    selectedInvoiceIds={new Set()} onSelectionChange={() => {}}
                 />
             </section>
         )}
@@ -452,12 +470,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 </div>
             </div>
             
+            {selectedInvoiceIds.size > 0 && (
+                <div className="flex items-center gap-4 mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+                    <span className="font-semibold text-indigo-700 dark:text-indigo-300">
+                        {translations.countSelected.replace('{count}', selectedInvoiceIds.size.toString())}
+                    </span>
+                    <button 
+                        onClick={() => setIsDeleteSelectedConfirmOpen(true)}
+                        className="px-4 py-2 flex items-center gap-2 text-sm font-semibold text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 rounded-lg"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                        {translations.deleteSelected}
+                    </button>
+                </div>
+            )}
+
             {invoices.length > 0 ? (
                 <InvoiceTable 
                     invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
                     onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
                     columnVisibility={columnVisibility}
+                    selectedInvoiceIds={selectedInvoiceIds}
+                    onSelectionChange={setSelectedInvoiceIds}
                 />
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
@@ -468,6 +503,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}
             title={translations.deleteConfirmTitle} message={translations.deleteConfirmMessage}
             confirmText={translations.delete} cancelText={translations.cancel}
+        />
+
+        <ConfirmationModal 
+            isOpen={isDeleteSelectedConfirmOpen}
+            onClose={() => setIsDeleteSelectedConfirmOpen(false)}
+            onConfirm={handleDeleteSelected}
+            title={translations.deleteConfirmTitle}
+            message={translations.deleteSelectedConfirmMessage.replace('{count}', selectedInvoiceIds.size.toString())}
+            confirmText={translations.delete}
+            cancelText={translations.cancel}
         />
 
         {invoiceToView && (
