@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -30,6 +31,19 @@ export interface Invoice {
   paymentStatus: 'paid' | 'unpaid';
   sourceFileBase64?: string;
   sourceFileMimeType?: string;
+}
+
+export interface Anomaly {
+  invoiceId?: string;
+  invoiceNumber: string;
+  issue: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
+export interface KPIResult {
+  label: string;
+  value: string | number;
+  unit?: string;
 }
 
 export interface Translations {

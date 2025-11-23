@@ -1,3 +1,4 @@
+
 import type { Translations } from './types';
 
 interface AppTranslations {
@@ -149,6 +150,29 @@ export const translations: AppTranslations = {
     chatWelcome: 'Hello! I can analyze your invoice data. Ask me anything!',
     thinking: 'Thinking...',
     send: 'Send',
+
+    // Smart Analysis
+    smartAnalysisTitle: 'Smart Analysis Hub',
+    aiSummary: 'AI-Powered Summary',
+    showSummary: 'Generate AI Summary',
+    hideSummary: 'Hide Summary',
+    anomalyDetection: 'Anomaly Detection',
+    showAnomalies: 'Detect Anomalies',
+    hideAnomalies: 'Hide Anomalies',
+    kpiGenerator: 'AI KPI Generator',
+    kpiPlaceholder: 'Request a specific metric (e.g., "Total unpaid invoices")',
+    generate: 'Generate',
+    suggestMore: 'Suggest Indicators',
+    dataVisualization: 'Data Visualization',
+    hideChart: 'Hide Chart',
+    chartXAxis: 'Dimension (X-Axis)',
+    chartYAxis: 'Metric (Y-Axis)',
+    axisVendor: 'Vendor',
+    axisDate: 'Date',
+    axisStatus: 'Status',
+    axisTotal: 'Total Amount',
+    noAnomaliesFound: 'Great! No anomalies or irregularities found in your invoices.',
+    generateKpiPrompt: 'Generate',
   },
   ar: {
     // General
@@ -292,5 +316,28 @@ export const translations: AppTranslations = {
     chatWelcome: 'مرحباً! يمكنني تحليل بيانات فواتيرك. اسألني أي شيء!',
     thinking: 'يفكر...',
     send: 'إرسال',
+
+    // Smart Analysis
+    smartAnalysisTitle: 'التحليل الذكي المتكامل',
+    aiSummary: 'ملخص مدعوم بالذكاء الاصطناعي',
+    showSummary: 'إظهار الملخص الذكي',
+    hideSummary: 'إخفاء الملخص',
+    anomalyDetection: 'كشف الحالات الغريبة',
+    showAnomalies: 'إظهار كاشف الحالات الغريبة',
+    hideAnomalies: 'إخفاء الكاشف',
+    kpiGenerator: 'مولد مؤشرات الأداء بالذكاء الاصطناعي',
+    kpiPlaceholder: 'اطلب مؤشر أداء مخصص (مثال: "إجمالي الفواتير غير المدفوعة")',
+    generate: 'إنشاء',
+    suggestMore: 'اقترح المزيد من المؤشرات',
+    dataVisualization: 'تصور البيانات',
+    hideChart: 'إخفاء التصور البياني',
+    chartXAxis: 'البعد (المحور السيني)',
+    chartYAxis: 'المقياس (المحور الصادي)',
+    axisVendor: 'البائع',
+    axisDate: 'التاريخ',
+    axisStatus: 'حالة الدفع',
+    axisTotal: 'المجموع (JOD)',
+    noAnomaliesFound: 'ممتاز! لا توجد حالات غريبة أو غير طبيعية في الفواتير.',
+    generateKpiPrompt: 'إنشاء',
   }
 };

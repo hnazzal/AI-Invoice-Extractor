@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Handler, HandlerEvent } from "@netlify/functions";
 
@@ -51,8 +52,34 @@ const extractSchema = {
   required: ["invoiceNumber", "vendorName", "customerName", "invoiceDate", "totalAmount", "items"]
 };
 
-// Chat response schema is simpler - we just want text, but structured can help if we expand later.
-// For now, we'll stick to plain text for the chat to allow for formatting flexibility.
+const anomalySchema = {
+    type: Type.OBJECT,
+    properties: {
+        anomalies: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    invoiceNumber: { type: Type.STRING },
+                    issue: { type: Type.STRING, description: "Description of the anomaly (e.g., Duplicate, Unusually High Amount)" },
+                    severity: { type: Type.STRING, enum: ["high", "medium", "low"] }
+                },
+                required: ["invoiceNumber", "issue", "severity"]
+            }
+        }
+    },
+    required: ["anomalies"]
+};
+
+const kpiSchema = {
+    type: Type.OBJECT,
+    properties: {
+        label: { type: Type.STRING, description: "Short label for the KPI (e.g., 'Total Coffee Spend')" },
+        value: { type: Type.STRING, description: "The calculated value (e.g., '150.00 JOD')" }
+    },
+    required: ["label", "value"]
+};
+
 
 // --- Helpers ---
 
@@ -92,7 +119,6 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
     const filePart = { inlineData: { mimeType, data: fileBase64 } };
     const textPart = { text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible." };
 
-    // Note: Passing the file part *before* the text prompt is often more robust for context.
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [filePart, textPart] },
@@ -101,7 +127,6 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
 
     const responseText = response.text;
     
-    // Check for empty response (safety filters)
     if (!responseText) {
         throw new Error("The AI model could not process this image. It might be flagged by safety filters or contains no readable text.");
     }
@@ -133,7 +158,6 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
         sourceFileMimeType: mimeType,
     };
 
-    // Validation Check: If practically everything is empty, the model failed to find data.
     if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
         throw new Error("The AI processed the file but couldn't find any invoice details. Please ensure the image is a valid invoice.");
     }
@@ -145,8 +169,6 @@ const handleChat = async (ai: GoogleGenAI, body: any) => {
     const { query, invoices, language } = body;
     if (!query || !invoices) throw new Error('Missing query or invoices for chat task.');
 
-    // Prepare context by stripping unnecessary heavy fields (like base64) to save tokens
-    // We already did this on the client, but double check.
     const contextData = JSON.stringify(invoices);
     const langInstruction = language === 'ar' ? "Answer in Arabic." : "Answer in English.";
 
@@ -172,10 +194,86 @@ const handleChat = async (ai: GoogleGenAI, body: any) => {
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [{ text: prompt }] },
-        // No strict JSON schema here, we want natural language
     });
 
     return { result: response.text };
+};
+
+const handleSummary = async (ai: GoogleGenAI, body: any) => {
+    const { invoices, language } = body;
+    const langInstruction = language === 'ar' ? "Write the summary in Arabic." : "Write the summary in English.";
+    
+    const prompt = `
+    Analyze this list of invoices and provide a concise executive summary.
+    ${langInstruction}
+    
+    Invoices: ${JSON.stringify(invoices)}
+    
+    Focus on:
+    1. Total spend.
+    2. Major spending categories or vendors.
+    3. Any recent trends (e.g., spending increasing).
+    4. Keep it under 100 words.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+    });
+    return { result: response.text };
+};
+
+const handleAnomalies = async (ai: GoogleGenAI, body: any) => {
+    const { invoices, language } = body;
+     const langInstruction = language === 'ar' ? "Describe issues in Arabic." : "Describe issues in English.";
+
+    const prompt = `
+    Detect anomalies in this invoice dataset.
+    ${langInstruction}
+    
+    Invoices: ${JSON.stringify(invoices)}
+    
+    Look for:
+    1. Duplicate invoice numbers.
+    2. Duplicate amounts for the same vendor on the same day.
+    3. Unusually high amounts compared to the average.
+    4. Missing critical fields (like Invoice Number).
+    
+    Return a list of anomalies found. If none, return an empty array.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+        config: { responseMimeType: "application/json", responseSchema: anomalySchema },
+    });
+    
+    const cleanedText = cleanJsonString(response.text);
+    return JSON.parse(cleanedText); // Returns { anomalies: [...] }
+};
+
+const handleKPI = async (ai: GoogleGenAI, body: any) => {
+    const { query, invoices, language } = body;
+    const langInstruction = language === 'ar' ? "Label in Arabic." : "Label in English.";
+    
+    const prompt = `
+    Calculate a specific KPI based on the user request.
+    ${langInstruction}
+    
+    Invoices: ${JSON.stringify(invoices)}
+    Request: "${query}"
+    
+    Return a JSON object with a short 'label' and the calculated 'value'.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+         config: { responseMimeType: "application/json", responseSchema: kpiSchema },
+    });
+    
+    const cleanedText = cleanJsonString(response.text);
+    return JSON.parse(cleanedText); // Returns { label: "...", value: "..." }
 };
 
 
@@ -200,6 +298,15 @@ const handler: Handler = async (event: HandlerEvent) => {
                 break;
             case 'chat':
                 responseData = await handleChat(ai, body);
+                break;
+            case 'summary':
+                responseData = await handleSummary(ai, body);
+                break;
+            case 'anomalies':
+                responseData = await handleAnomalies(ai, body);
+                break;
+            case 'kpi':
+                responseData = await handleKPI(ai, body);
                 break;
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: 'Invalid task specified.' }) };

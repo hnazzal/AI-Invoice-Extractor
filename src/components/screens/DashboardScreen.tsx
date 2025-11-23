@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
 import * as geminiService from '../../services/geminiService';
@@ -9,6 +10,7 @@ import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
 import ManualInvoiceModal from '../shared/ManualInvoiceModal';
 import Chatbot from '../shared/Chatbot';
+import SmartAnalysis from '../shared/SmartAnalysis';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -361,7 +363,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
   return (
     <div className="space-y-8">
-        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{translations.dashboardTitle}</h1>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+             <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{translations.dashboardTitle}</h1>
+        </div>
         
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <SummaryCard title={translations.totalInvoices} value={invoices.length} gradient="bg-gradient-to-br from-indigo-500 to-blue-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0A2.25 2.25 0 015.625 7.5h12.75c1.13 0 2.063.784 2.227 1.883" /></svg>} />
@@ -369,6 +373,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.paidInvoices} value={paidCount} gradient="bg-gradient-to-br from-green-500 to-emerald-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
+
+        {/* Smart Analysis Section */}
+        {invoices.length > 0 && (
+             <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
+        )}
 
         <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
