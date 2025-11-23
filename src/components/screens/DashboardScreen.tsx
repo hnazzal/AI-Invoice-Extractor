@@ -374,11 +374,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
 
-        {/* Smart Analysis Section */}
-        {invoices.length > 0 && (
-             <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
-        )}
-
+        {/* Upload/Add Invoice Section - Moved here to be above Smart Analysis */}
         <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
@@ -414,6 +410,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             )}
             {processingError && <p className="mt-4 text-sm text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{processingError}</p>}
         </section>
+
+        {/* Smart Analysis Section */}
+        {invoices.length > 0 && (
+             <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
+        )}
 
         {isCameraOpen && (
             <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
