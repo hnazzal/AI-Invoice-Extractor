@@ -1,170 +1,170 @@
-import { GoogleGenAI, Chat } from "@google/genai";
-import React, { useState, useEffect, useRef, FormEvent } from 'react';
-import type { Invoice, Translations, Currency, Language } from '../../types';
-import { config } from '../../config';
-import Spinner from './Spinner';
+import React, { useState, useRef, useEffect } from 'react';
+import type { Invoice, Translations, Language } from '../../types';
+import * as geminiService from '../../services/geminiService';
 
 interface ChatbotProps {
-  isOpen: boolean;
-  onClose: () => void;
   invoices: Invoice[];
   translations: Translations;
-  currency: Currency;
-  lang: Language;
+  language: Language;
 }
 
 interface Message {
   role: 'user' | 'model';
-  content: string;
+  text: string;
 }
 
-const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, invoices, translations, currency, lang }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const chatRef = useRef<Chat | null>(null);
+const Chatbot: React.FC<ChatbotProps> = ({ invoices, translations, language }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'model', text: translations.chatWelcome }
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isVisible = useRef(false);
+
+  const suggestions = [
+    { label: translations.suggestionTotalSpend, query: "What is the total amount of all invoices?" },
+    { label: translations.suggestionTopVendor, query: "Which vendor have I spent the most with?" },
+    { label: translations.suggestionMostPurchased, query: "What is the most frequently purchased item?" },
+    { label: translations.suggestionUnpaid, query: "What is the total of unpaid invoices?" },
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(scrollToBottom, [messages]);
-
   useEffect(() => {
-    if (isOpen && !isVisible.current) {
-        isVisible.current = true; // Mark as visible to prevent re-initialization
-        setIsLoading(true);
-        try {
-            const ai = new GoogleGenAI({ apiKey: config.apiKey! });
-            
-            const currentDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-            const invoiceDataString = invoices.length > 0 ? JSON.stringify(invoices, null, 2) : "No invoices to display.";
-
-            const systemPrompt = `You are an intelligent invoice assistant integrated into an application. Your purpose is to help users understand their invoice data by answering their questions. You will be provided with a list of the user's invoices in JSON format. You MUST base your answers strictly on this data. Do not invent or assume any information not present in the provided JSON. When asked for totals or summaries, calculate them accurately from the data. If a question cannot be answered using the provided data, state that clearly and politely. For example, say "I can only answer questions about the invoice data I have." Keep your answers concise and clear. The user's currency is ${currency}. Make sure to mention the currency in your answers when talking about money. Today's date is ${currentDate}. Use this for any time-related questions like "this month". Here is the user's current invoice data: ${invoiceDataString}`;
-            
-            chatRef.current = ai.chats.create({
-                model: 'gemini-2.5-flash',
-                history: [
-                    { role: 'user', parts: [{ text: systemPrompt }] },
-                    { role: 'model', parts: [{ text: translations.chatWelcome }] }
-                ]
-            });
-
-            setMessages([{ role: 'model', content: translations.chatWelcome }]);
-        } catch (error) {
-            console.error("Failed to initialize chatbot:", error);
-            setMessages([{ role: 'model', content: "Sorry, I couldn't start up correctly. Please check the console for errors." }]);
-        } finally {
-            setIsLoading(false);
-        }
-    } else if (!isOpen) {
-        // Reset when closed
-        isVisible.current = false;
-        chatRef.current = null;
-        setMessages([]);
+    if (isOpen) {
+      scrollToBottom();
     }
-  }, [isOpen, invoices, translations, currency]);
+  }, [messages, isOpen]);
 
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    const userMessage = inputValue.trim();
-    if (!userMessage || isLoading || !chatRef.current) return;
+  const handleSend = async (queryOverride?: string) => {
+    const textToSend = queryOverride || input;
+    if (!textToSend.trim()) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setInputValue('');
-    setIsLoading(true);
+    // Add user message
+    setMessages(prev => [...prev, { role: 'user', text: textToSend }]);
+    setInput('');
+    setIsTyping(true);
 
     try {
-        const response = await chatRef.current.sendMessage({ message: userMessage });
-        const modelResponse = response.text;
-        setMessages(prev => [...prev, { role: 'model', content: modelResponse }]);
+      const responseText = await geminiService.chatWithInvoices(textToSend, invoices, language);
+      setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error) {
-        console.error("Chatbot error:", error);
-        setMessages(prev => [...prev, { role: 'model', content: "Sorry, I encountered an error. Please try again." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error analyzing your data." }]);
     } finally {
-        setIsLoading(false);
+      setIsTyping(false);
     }
   };
 
-  const renderContent = (content: string) => {
-    // Basic markdown for newlines
-    return content.split('\n').map((line, index) => (
-        <React.Fragment key={index}>
-            {line}
-            <br />
-        </React.Fragment>
-    ));
-  };
+  const toggleChat = () => setIsOpen(!isOpen);
 
   return (
     <>
-      <div 
-        className={`fixed inset-0 bg-black/30 dark:bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
-        aria-hidden={!isOpen}
-      ></div>
-      <div
-        className={`fixed top-0 bottom-0 ${lang === 'ar' ? 'left-0' : 'right-0'} w-full max-w-md bg-white dark:bg-slate-900/95 backdrop-blur-lg border-s border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out z-50 ${isOpen ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="chatbot-title"
+      {/* Floating Action Button */}
+      <button
+        onClick={toggleChat}
+        className={`fixed bottom-6 ${language === 'ar' ? 'left-6' : 'right-6'} z-50 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300`}
+        aria-label="Open AI Assistant"
       >
-        <header className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-          <h2 id="chatbot-title" className="text-lg font-bold text-slate-800 dark:text-slate-100">{translations.aiAssistant}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
-            aria-label={translations.close}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </header>
+        {isOpen ? (
+           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+        ) : (
+           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+        )}
+      </button>
 
-        <div className="flex-grow p-4 overflow-y-auto space-y-4">
-          {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs md:max-w-sm lg:max-w-md px-4 py-2 rounded-2xl ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-lg'}`}>
-                <p className="text-sm">{renderContent(msg.content)}</p>
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-               <div className="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 rounded-bl-lg">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
-                </div>
+      {/* Chat Window */}
+      {isOpen && (
+        <div 
+            className={`fixed bottom-24 ${language === 'ar' ? 'left-4' : 'right-4'} z-50 w-full max-w-sm md:max-w-md h-[500px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-fade-in-up`}
+            dir={language === 'ar' ? 'rtl' : 'ltr'}
+        >
+          {/* Header */}
+          <div className="p-4 bg-indigo-600 text-white flex justify-between items-center">
+             <div className="flex items-center gap-2">
+                 <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                 </div>
+                 <h3 className="font-bold text-lg">{translations.aiAssistant}</h3>
+             </div>
+             <button onClick={toggleChat} className="text-white/80 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+             </button>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-grow p-4 overflow-y-auto bg-slate-50 dark:bg-slate-800 space-y-4">
+             {messages.map((msg, idx) => (
+               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+                      msg.role === 'user' 
+                      ? 'bg-indigo-600 text-white rounded-br-none' 
+                      : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm border border-slate-100 dark:border-slate-600 rounded-bl-none'
+                  }`}>
+                    {msg.text}
+                  </div>
                </div>
-            </div>
+             ))}
+             {isTyping && (
+                 <div className="flex justify-start">
+                     <div className="bg-white dark:bg-slate-700 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-600">
+                        <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100"></span>
+                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                        </div>
+                     </div>
+                 </div>
+             )}
+             <div ref={messagesEndRef} />
+          </div>
+          
+          {/* Suggestions */}
+          {messages.length === 1 && (
+              <div className="px-4 pb-2 bg-slate-50 dark:bg-slate-800">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 px-1">{translations.suggestionTitle}</p>
+                  <div className="flex flex-wrap gap-2">
+                      {suggestions.map((s, i) => (
+                          <button 
+                            key={i} 
+                            onClick={() => handleSend(s.query)}
+                            className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                          >
+                              {s.label}
+                          </button>
+                      ))}
+                  </div>
+              </div>
           )}
-          <div ref={messagesEndRef} />
-        </div>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900">
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={translations.typeYourMessage}
-              className="flex-grow w-full px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-              disabled={isLoading || !inputValue.trim()}
-              aria-label={translations.send}
-            >
-              {isLoading ? <Spinner /> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.428A1 1 0 009.05 16.43l-2.072-5.889a.5.5 0 01.932-.328l2.978 8.455a1 1 0 001.788 0l7-14a1 1 0 00-1.169-1.409l-5 1.428A1 1 0 0010.95 3.57l2.072 5.889a.5.5 0 01-.932.328l-2.978-8.455z" /></svg>}
-            </button>
-          </form>
+          {/* Input Area */}
+          <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+              <form 
+                onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                className="flex items-center gap-2"
+              >
+                  <input 
+                    type="text" 
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={translations.chatPlaceholder}
+                    className="flex-grow bg-slate-100 dark:bg-slate-800 border-0 rounded-full px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 dark:text-white placeholder:text-slate-400"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!input.trim() || isTyping}
+                    className="p-2.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                     </svg>
+                  </button>
+              </form>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 };

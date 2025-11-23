@@ -29,10 +29,12 @@ export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: s
   return callProxy({ task: 'extract', fileBase64, mimeType });
 };
 
-export const calculateKpiFromInvoices = async (query: string, invoices: Invoice[]): Promise<{ result: string }> => {
-    // Sanitize invoices to send only necessary data
+export const chatWithInvoices = async (query: string, invoices: Invoice[], language: string): Promise<string> => {
+    // Sanitize invoices to send only necessary data to save tokens and bandwidth.
+    // Crucially, remove the base64 file data!
     const relevantData = invoices.map(({ invoiceNumber, vendorName, customerName, invoiceDate, totalAmount, items, paymentStatus }) => 
         ({ invoiceNumber, vendorName, customerName, invoiceDate, totalAmount, items, paymentStatus })
     );
-    return callProxy({ task: 'calculate', query, invoices: relevantData });
+    const response = await callProxy({ task: 'chat', query, invoices: relevantData, language });
+    return response.result;
 };

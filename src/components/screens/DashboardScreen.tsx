@@ -8,6 +8,7 @@ import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
 import FileViewerModal from '../shared/FileViewerModal';
 import ManualInvoiceModal from '../shared/ManualInvoiceModal';
+import Chatbot from '../shared/Chatbot';
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -500,6 +501,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
         </section>
+
+        <Chatbot invoices={invoices} translations={translations} language={lang} />
 
         <ConfirmationModal 
             isOpen={!!invoiceToDelete} onClose={() => setInvoiceToDelete(null)} onConfirm={handleDeleteInvoice}

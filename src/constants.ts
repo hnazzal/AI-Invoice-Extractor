@@ -138,13 +138,17 @@ export const translations: AppTranslations = {
     removeItem: 'Remove',
     uploader: 'Uploader',
 
-    // AI KPI Generator
-    aiKpiGeneratorTitle: 'AI-Powered KPI Generator',
-    kpiQueryPlaceholder: 'Ask a custom KPI question (e.g., "total of unpaid invoices")',
-    generateKpi: 'Generate',
-    kpiResultTitle: 'AI Generated Answer',
-    calculatingKpi: 'Calculating...',
-    calculationError: 'Could not calculate the KPI.',
+    // Chatbot
+    aiAssistant: 'AI Invoice Assistant',
+    chatPlaceholder: 'Ask about your invoices...',
+    suggestionTitle: 'Suggestions:',
+    suggestionTotalSpend: 'What is my total spend?',
+    suggestionTopVendor: 'Who is my top vendor?',
+    suggestionMostPurchased: 'What is my most purchased item?',
+    suggestionUnpaid: 'How much do I owe?',
+    chatWelcome: 'Hello! I can analyze your invoice data. Ask me anything!',
+    thinking: 'Thinking...',
+    send: 'Send',
   },
   ar: {
     // General
@@ -277,12 +281,16 @@ export const translations: AppTranslations = {
     removeItem: 'حذف',
     uploader: 'المستخدم',
     
-    // AI KPI Generator
-    aiKpiGeneratorTitle: 'مولد مؤشرات الأداء بالذكاء الاصطناعي',
-    kpiQueryPlaceholder: 'اطلب مؤشر أداء مخصص (مثال: "إجمالي الفواتير غير المدفوعة")',
-    generateKpi: 'إنشاء',
-    kpiResultTitle: 'إجابة الذكاء الاصطناعي',
-    calculatingKpi: 'جارِ الحساب...',
-    calculationError: 'تعذر حساب المؤشر.',
+    // Chatbot
+    aiAssistant: 'مساعد الفواتير الذكي',
+    chatPlaceholder: 'اسأل عن فواتيرك...',
+    suggestionTitle: 'اقتراحات:',
+    suggestionTotalSpend: 'كم مجموع صرفياتي؟',
+    suggestionTopVendor: 'من هو المورد الأكثر تعاملاً؟',
+    suggestionMostPurchased: 'ما هو الصنف الأكثر شراء؟',
+    suggestionUnpaid: 'كم علي ديون؟',
+    chatWelcome: 'مرحباً! يمكنني تحليل بيانات فواتيرك. اسألني أي شيء!',
+    thinking: 'يفكر...',
+    send: 'إرسال',
   }
 };

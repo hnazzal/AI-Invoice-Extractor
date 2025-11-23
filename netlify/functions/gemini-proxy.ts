@@ -51,13 +51,8 @@ const extractSchema = {
   required: ["invoiceNumber", "vendorName", "customerName", "invoiceDate", "totalAmount", "items"]
 };
 
-const calculateSchema = {
-    type: Type.OBJECT,
-    properties: {
-        result: { type: Type.STRING, description: "The calculated result of the KPI, as a single-value string (e.g., a number, a sentence, or a name). Be concise." }
-    },
-    required: ["result"]
-};
+// Chat response schema is simpler - we just want text, but structured can help if we expand later.
+// For now, we'll stick to plain text for the chat to allow for formatting flexibility.
 
 // --- Helpers ---
 
@@ -146,20 +141,41 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
     return sanitizedData;
 };
 
-const handleCalculate = async (ai: GoogleGenAI, body: any) => {
-    const { query, invoices } = body;
-    if (!query || !invoices) throw new Error('Missing query or invoices for calculate task.');
+const handleChat = async (ai: GoogleGenAI, body: any) => {
+    const { query, invoices, language } = body;
+    if (!query || !invoices) throw new Error('Missing query or invoices for chat task.');
 
-    const prompt = `Given the following JSON data of invoices, answer this question: "${query}".\n\nProvide a direct, concise answer.\n\nData: ${JSON.stringify(invoices, null, 2)}`;
+    // Prepare context by stripping unnecessary heavy fields (like base64) to save tokens
+    // We already did this on the client, but double check.
+    const contextData = JSON.stringify(invoices);
+    const langInstruction = language === 'ar' ? "Answer in Arabic." : "Answer in English.";
+
+    const prompt = `
+    You are a helpful data analyst assistant for an invoice management app.
+    ${langInstruction}
+    
+    Here is the dataset of invoices:
+    ${contextData}
+
+    User Question: "${query}"
+
+    Instructions:
+    1. Analyze the provided invoice data to answer the user's question accurately.
+    2. If the user asks for "most purchased item", look at the 'items' array in all invoices and sum up quantities or frequencies.
+    3. If the user asks for "top vendor", sum up the 'totalAmount' per 'vendorName'.
+    4. Provide the answer in a friendly, conversational tone.
+    5. If the data needed to answer is missing, politeley say you don't have that information.
+    6. Format numbers clearly (e.g., currency).
+    7. Keep the response concise but informative.
+    `;
     
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [{ text: prompt }] },
-        config: { responseMimeType: "application/json", responseSchema: calculateSchema },
+        // No strict JSON schema here, we want natural language
     });
 
-    const cleanedText = cleanJsonString(response.text);
-    return JSON.parse(cleanedText);
+    return { result: response.text };
 };
 
 
@@ -182,8 +198,8 @@ const handler: Handler = async (event: HandlerEvent) => {
             case 'extract':
                 responseData = await handleExtract(ai, body);
                 break;
-            case 'calculate':
-                responseData = await handleCalculate(ai, body);
+            case 'chat':
+                responseData = await handleChat(ai, body);
                 break;
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: 'Invalid task specified.' }) };
@@ -198,11 +214,22 @@ const handler: Handler = async (event: HandlerEvent) => {
     } catch (error: any) {
         console.error("Error in Gemini proxy function:", error);
         
-        // Return a clean error message to the frontend
+        let clientMessage = error.message || "An unexpected error occurred during processing.";
+
+        if (typeof clientMessage === 'string') {
+             if (clientMessage.includes("API key was reported as leaked") || clientMessage.includes("PERMISSION_DENIED")) {
+                 clientMessage = "Service Error: The API Key has been disabled by Google due to security reasons. Please update the app configuration with a new key.";
+             } else if (clientMessage.includes("429") || clientMessage.includes("Too Many Requests") || clientMessage.includes("RESOURCE_EXHAUSTED")) {
+                 clientMessage = "The AI service is currently busy (Quota Exceeded). Please try again in a minute.";
+             } else if (clientMessage.includes("Safety") || clientMessage.includes("blocked")) {
+                 clientMessage = "The document was flagged by safety filters and could not be processed. Please try a different file.";
+             }
+        }
+
         return { 
             statusCode: 500, 
             body: JSON.stringify({ 
-                error: error.message || "An unexpected error occurred during processing." 
+                error: clientMessage
             })
         };
     }
