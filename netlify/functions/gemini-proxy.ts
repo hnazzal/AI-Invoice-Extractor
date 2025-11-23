@@ -59,12 +59,10 @@ const calculateSchema = {
     required: ["result"]
 };
 
-// --- Handlers for different AI tasks ---
+// --- Helpers ---
 
 /**
  * Safely parses a value into a float, handling numbers, strings with commas, and invalid inputs.
- * @param value The value to parse.
- * @returns The parsed number, or 0 if parsing fails.
  */
 const safeParseFloat = (value: any): number => {
     if (typeof value === 'number') return value;
@@ -75,6 +73,22 @@ const safeParseFloat = (value: any): number => {
     return isNaN(num) ? 0 : num;
 };
 
+/**
+ * Cleans a string to ensure it is valid JSON, stripping Markdown code blocks if present.
+ */
+const cleanJsonString = (str: string | undefined): string => {
+    if (!str) return "{}";
+    let cleaned = str.trim();
+    // Remove markdown code blocks (e.g. ```json ... ```)
+    if (cleaned.startsWith("```json")) {
+        cleaned = cleaned.replace(/^```json/, "").replace(/```$/, "");
+    } else if (cleaned.startsWith("```")) {
+        cleaned = cleaned.replace(/^```/, "").replace(/```$/, "");
+    }
+    return cleaned.trim();
+};
+
+// --- Handlers for different AI tasks ---
 
 const handleExtract = async (ai: GoogleGenAI, body: any) => {
     const { fileBase64, mimeType } = body;
@@ -83,13 +97,30 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
     const filePart = { inlineData: { mimeType, data: fileBase64 } };
     const textPart = { text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible." };
 
+    // Note: Passing the file part *before* the text prompt is often more robust for context.
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: { parts: [textPart, filePart] },
+        contents: { parts: [filePart, textPart] },
         config: { responseMimeType: "application/json", responseSchema: extractSchema },
     });
 
-    const parsedJson = JSON.parse(response.text.trim());
+    const responseText = response.text;
+    
+    // Check for empty response (safety filters)
+    if (!responseText) {
+        throw new Error("The AI model could not process this image. It might be flagged by safety filters or contains no readable text.");
+    }
+
+    const cleanedText = cleanJsonString(responseText);
+    let parsedJson;
+    
+    try {
+        parsedJson = JSON.parse(cleanedText);
+    } catch (error) {
+        console.error("JSON Parse Error on text:", responseText);
+        throw new Error("The AI extracted data but the format was invalid. Please try a clearer image.");
+    }
+
     const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
         invoiceNumber: parsedJson.invoiceNumber || parsedJson.invoiceId || '', 
         vendorName: parsedJson.vendorName || '',
@@ -106,9 +137,12 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
         sourceFileBase64: fileBase64, 
         sourceFileMimeType: mimeType,
     };
+
+    // Validation Check: If practically everything is empty, the model failed to find data.
     if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
-        throw new Error("Core invoice details (number, vendor, items) could not be extracted.");
+        throw new Error("The AI processed the file but couldn't find any invoice details. Please ensure the image is a valid invoice.");
     }
+    
     return sanitizedData;
 };
 
@@ -123,7 +157,9 @@ const handleCalculate = async (ai: GoogleGenAI, body: any) => {
         contents: { parts: [{ text: prompt }] },
         config: { responseMimeType: "application/json", responseSchema: calculateSchema },
     });
-    return JSON.parse(response.text.trim());
+
+    const cleanedText = cleanJsonString(response.text);
+    return JSON.parse(cleanedText);
 };
 
 
@@ -132,7 +168,7 @@ const handler: Handler = async (event: HandlerEvent) => {
         return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
     if (!API_KEY) {
-        return { statusCode: 500, body: JSON.stringify({ error: "Gemini service is not configured on the server. VITE_API_KEY is missing." }) };
+        return { statusCode: 500, body: JSON.stringify({ error: "Server Configuration Error: VITE_API_KEY is missing." }) };
     }
 
     try {
@@ -161,11 +197,14 @@ const handler: Handler = async (event: HandlerEvent) => {
         
     } catch (error: any) {
         console.error("Error in Gemini proxy function:", error);
-        // Sanitize error message to avoid exposing sensitive details
-        const message = error.message?.includes("Core invoice details") 
-            ? error.message 
-            : "Failed to process the request with the AI service.";
-        return { statusCode: 500, body: JSON.stringify({ error: message, details: error.message })};
+        
+        // Return a clean error message to the frontend
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ 
+                error: error.message || "An unexpected error occurred during processing." 
+            })
+        };
     }
 };
 

@@ -141,7 +141,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       });
 
     } catch (error: any) {
-      setProcessingError(translations.extractionError);
+      // Use the specific error message from the backend if available, otherwise use the translation
+      const errorMessage = error.message || translations.extractionError;
+      setProcessingError(errorMessage);
       console.error(error);
     } finally {
       setIsProcessing(false);
@@ -400,7 +402,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 </div>
             )}
-            {processingError && <p className="mt-4 text-sm text-red-500">{processingError}</p>}
+            {processingError && <p className="mt-4 text-sm text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{processingError}</p>}
         </section>
 
         {isCameraOpen && (
