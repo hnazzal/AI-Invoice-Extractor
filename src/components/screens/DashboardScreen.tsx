@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
 import * as geminiService from '../../services/geminiService';
 import * as dbService from '../../services/dbService';
@@ -516,24 +517,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
              <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
         )}
 
-        {isCameraOpen && (
-            <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center p-0 md:p-4 h-[100dvh] w-screen touch-none">
-                <div className="relative w-full h-full md:max-w-lg md:aspect-[3/4] md:h-auto bg-black md:rounded-3xl overflow-hidden shadow-2xl border-0 md:border border-slate-700">
-                    <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover ${capturedImage ? 'hidden' : 'block'}`}></video>
-                    {capturedImage && <img src={capturedImage} alt="Captured" className="w-full h-full object-contain bg-black" />}
+        {/* Camera Overlay Portal - Renders outside of Dashboard/App stacking context */}
+        {isCameraOpen && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
+                <div className="relative w-full h-full max-w-lg mx-auto bg-black flex flex-col">
+                    <video ref={videoRef} autoPlay playsInline className={`w-full flex-grow object-cover ${capturedImage ? 'hidden' : 'block'}`}></video>
+                    {capturedImage && <img src={capturedImage} alt="Captured" className="w-full flex-grow object-contain bg-black" />}
                     <canvas ref={canvasRef} className="hidden"></canvas>
                     
-                    {/* Camera Controls Overlay */}
-                    <div className="absolute top-0 left-0 right-0 p-4 pt-8 md:pt-4 flex justify-end bg-gradient-to-b from-black/50 to-transparent z-10">
-                        <button onClick={handleCloseCamera} className="text-white bg-black/40 hover:bg-black/60 rounded-full p-3 backdrop-blur-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    {/* Top Bar */}
+                    <div className="absolute top-0 left-0 right-0 p-6 flex justify-end z-10 bg-gradient-to-b from-black/60 to-transparent">
+                        <button onClick={handleCloseCamera} className="text-white bg-black/30 hover:bg-black/50 rounded-full p-2 backdrop-blur-md border border-white/10">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-center items-center gap-8 z-10">
+                    {/* Bottom Controls */}
+                    <div className="absolute bottom-0 left-0 right-0 p-8 pb-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-center items-center gap-8 z-10">
                         {capturedImage ? (
                             <>
-                                <button onClick={handleRetake} className="px-6 py-3 text-white bg-slate-700 hover:bg-slate-600 rounded-full font-medium backdrop-blur-md border border-slate-500/50">{translations.retake}</button>
+                                <button onClick={handleRetake} className="px-6 py-3 text-white bg-slate-700 hover:bg-slate-600 rounded-full font-medium backdrop-blur-md border border-slate-500/50 shadow-lg">{translations.retake}</button>
                                 <button onClick={handleUsePhoto} className="px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-500 rounded-full font-medium shadow-lg shadow-indigo-500/30">{translations.usePhoto}</button>
                             </>
                         ) : (
@@ -544,9 +547,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                             ></button>
                         )}
                     </div>
-                    {cameraError && <p className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center text-sm text-red-500 bg-black/70 px-4 py-2 rounded-lg backdrop-blur-md z-20">{cameraError}</p>}
+                    {cameraError && <p className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center text-sm text-red-500 bg-black/70 px-4 py-2 rounded-lg backdrop-blur-md z-20 border border-red-500/30">{cameraError}</p>}
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
         {newlyExtractedInvoice && !isProcessing && (

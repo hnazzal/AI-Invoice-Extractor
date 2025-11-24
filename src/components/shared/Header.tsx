@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { User, Language, Translations, Theme, Currency } from '../../types';
 import ToggleSwitch from './ToggleSwitch';
 
@@ -15,6 +15,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, setTheme, currency, setCurrency, translations }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const languageOptions = [
     { value: 'ar', label: 'العربية' },
     { value: 'en', label: 'English' },
@@ -36,9 +38,8 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
     </div>
   );
 
-
   const AuthHeader = () => (
-    <header className="absolute top-0 left-0 right-0 z-50 p-4">
+    <header className="absolute top-0 left-0 right-0 z-40 p-4">
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between">
                 <AppLogo />
@@ -52,14 +53,15 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
   }
 
   return (
-    <header className="sticky top-4 z-50 mx-4 my-4">
-      <div className="max-w-7xl mx-auto bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50">
+    <header className="sticky top-4 z-40 mx-4 my-4">
+      <div className="max-w-7xl mx-auto bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-white/30 dark:border-slate-700/50 relative">
         <div className="flex items-center justify-between h-20 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center">
              <AppLogo />
           </div>
-          <div className="flex items-center gap-4">
-            
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-4">
             <ToggleSwitch options={languageOptions} value={lang} onChange={(value) => setLang(value as Language)} />
             <ToggleSwitch options={currencyOptions} value={currency} onChange={(value) => setCurrency(value as Currency)} />
 
@@ -78,15 +80,65 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
             <button onClick={onLogout} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 transition-colors">
               {translations.logout}
             </button>
-            <div className="hidden sm:block border-s border-slate-200 dark:border-slate-700 h-8"></div>
-            <div className='hidden sm:flex items-center gap-2'>
+            <div className="border-s border-slate-200 dark:border-slate-700 h-8"></div>
+            <div className='flex items-center gap-2'>
               <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 uppercase ring-1 ring-white/50 dark:ring-slate-600">
                 {user.email.substring(0, 2)}
               </div>
-              <span className="font-semibold text-sm text-slate-700 dark:text-slate-300 hidden md:block">{user.email}</span>
             </div>
           </div>
+
+          {/* Mobile Hamburger Button */}
+          <div className="md:hidden flex items-center gap-2">
+             <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 uppercase ring-1 ring-white/50 dark:ring-slate-600">
+                {user.email.substring(0, 2)}
+            </div>
+            <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+                {isMobileMenuOpen ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                )}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {isMobileMenuOpen && (
+            <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-4 animate-fade-in-up z-50">
+                 <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Language</span>
+                        <ToggleSwitch options={languageOptions} value={lang} onChange={(value) => setLang(value as Language)} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Currency</span>
+                        <ToggleSwitch options={currencyOptions} value={currency} onChange={(value) => setCurrency(value as Currency)} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Theme</span>
+                        <button
+                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                        className="h-10 w-full flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors"
+                        >
+                        {theme === 'light' ? (
+                            <div className="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg> Dark Mode</div>
+                        ) : (
+                            <div className="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> Light Mode</div>
+                        )}
+                        </button>
+                    </div>
+                 </div>
+                 <div className="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                 <button onClick={onLogout} className="w-full py-3 rounded-lg text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    {translations.logout}
+                </button>
+            </div>
+        )}
       </div>
     </header>
   );
