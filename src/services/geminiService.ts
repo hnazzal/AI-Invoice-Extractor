@@ -37,6 +37,10 @@ export const extractInvoiceDataFromFile = async (fileBase64: string, mimeType: s
   return callProxy({ task: 'extract', fileBase64, mimeType });
 };
 
+export const extractInvoiceDataFromText = async (textData: string): Promise<Invoice> => {
+    return callProxy({ task: 'extract', textData });
+};
+
 export const chatWithInvoices = async (query: string, invoices: Invoice[], language: string): Promise<string> => {
     const relevantData = prepareInvoicesForAI(invoices);
     const response = await callProxy({ task: 'chat', query, invoices: relevantData, language });

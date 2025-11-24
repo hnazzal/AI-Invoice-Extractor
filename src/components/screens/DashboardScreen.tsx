@@ -12,6 +12,10 @@ import ManualInvoiceModal from '../shared/ManualInvoiceModal';
 import Chatbot from '../shared/Chatbot';
 import SmartAnalysis from '../shared/SmartAnalysis';
 
+// Import parsing libraries dynamically or assume they are available via global scope due to importmap
+import { read, utils } from 'xlsx';
+import mammoth from 'mammoth';
+
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -19,6 +23,23 @@ const fileToBase64 = (file: File): Promise<string> => {
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = error => reject(error);
   });
+};
+
+// Helper to read Excel file and convert to CSV string
+const readExcelFile = async (file: File): Promise<string> => {
+    const data = await file.arrayBuffer();
+    const workbook = read(data);
+    // Use the first sheet
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    // Convert to CSV text
+    return utils.sheet_to_csv(sheet);
+};
+
+// Helper to read Word file and extract raw text
+const readWordFile = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value;
 };
 
 const SummaryCard = ({ title, value, icon, gradient }) => (
@@ -66,13 +87,13 @@ const StatusPillFilter = ({ value, onChange, translations, lang }: { value: stri
 const UploadOptionCard = ({ icon, title, subtitle, onClick }) => (
     <div 
         onClick={onClick}
-        className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group"
+        className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group h-full min-h-[160px]"
     >
         <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
             {icon}
         </div>
         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{subtitle}</p>
     </div>
 );
 
@@ -132,14 +153,37 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setNewlyExtractedInvoice(null);
     
     try {
-      const base64String = await fileToBase64(file);
-      const pureBase64 = base64String.split(',')[1];
+      let extractedData: Invoice;
       
-      const extractedData = await geminiService.extractInvoiceDataFromFile(pureBase64, file.type);
+      const fileType = file.type;
+      const fileName = file.name.toLowerCase();
+
+      // Determine processing strategy based on file type
+      if (fileType === 'application/pdf' || fileType.startsWith('image/')) {
+          // Standard Image/PDF processing (Vision)
+          const base64String = await fileToBase64(file);
+          const pureBase64 = base64String.split(',')[1];
+          extractedData = await geminiService.extractInvoiceDataFromFile(pureBase64, file.type);
+      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv') || fileType.includes('spreadsheet') || fileType.includes('excel')) {
+          // Excel processing (Client-side parse -> Text)
+          const textData = await readExcelFile(file);
+          extractedData = await geminiService.extractInvoiceDataFromText(textData);
+          // Attach minimal file info since we can't easily view binary excel in the modal without more work
+          extractedData.sourceFileMimeType = fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else if (fileName.endsWith('.docx') || fileType.includes('wordprocessing')) {
+          // Word processing (Client-side parse -> Text)
+          const textData = await readWordFile(file);
+          extractedData = await geminiService.extractInvoiceDataFromText(textData);
+          extractedData.sourceFileMimeType = fileType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else {
+          throw new Error("Unsupported file type. Please upload PDF, Image, Excel, or Word documents.");
+      }
       
       setNewlyExtractedInvoice({
         ...extractedData,
-        sourceFileBase64: pureBase64,
+        // For non-image/pdf files, we assume we processed text, so we might not have a displayable base64
+        // But we try to attach one if possible for saving, or handle viewing gracefully later.
+        sourceFileBase64: (await fileToBase64(file)).split(',')[1],
         sourceFileMimeType: file.type,
       });
 
@@ -374,7 +418,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
         </section>
 
-        {/* Upload/Add Invoice Section - Moved here to be above Smart Analysis */}
+        {/* Upload/Add Invoice Section */}
         <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4">{translations.uploadBoxTitle}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{translations.uploadBoxSubtitle}</p>
@@ -382,24 +426,39 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {isProcessing ? (
                 <ProcessingLoader translations={translations} />
             ) : (
-                <div className="flex flex-col md:flex-row items-stretch gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                     {/* 1. Upload File */}
                      <UploadOptionCard
                         onClick={() => fileInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>}
                         title={translations.uploadImageOrPDF}
                         subtitle={translations.chooseFile}
                     />
+                    
+                     {/* 2. From Scanner (Button triggers file input for now, but distinct UI) */}
+                     <UploadOptionCard
+                        onClick={() => fileInputRef.current?.click()}
+                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>}
+                        title={translations.fromScanner}
+                        subtitle={translations.chooseFile}
+                    />
+
+                    {/* Hidden Input reused for both upload and scanner buttons */}
                     <input
                         ref={fileInputRef} type="file" onChange={handleFileChange}
-                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        accept="application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         className="hidden"
                     />
+                     
+                     {/* 3. Camera */}
                      <UploadOptionCard
                         onClick={handleOpenCamera}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                         title={translations.scanWithCamera}
                         subtitle={translations.or}
                     />
+                    
+                    {/* 4. Manual */}
                     <UploadOptionCard
                         onClick={() => setIsManualEntryOpen(true)}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>}

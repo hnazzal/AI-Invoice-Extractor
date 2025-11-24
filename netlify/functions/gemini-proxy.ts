@@ -113,22 +113,32 @@ const cleanJsonString = (str: string | undefined): string => {
 // --- Handlers for different AI tasks ---
 
 const handleExtract = async (ai: GoogleGenAI, body: any) => {
-    const { fileBase64, mimeType } = body;
-    if (!fileBase64 || !mimeType) throw new Error('Missing fileBase64 or mimeType for extract task.');
+    const { fileBase64, mimeType, textData } = body;
+    
+    let parts;
 
-    const filePart = { inlineData: { mimeType, data: fileBase64 } };
-    const textPart = { text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible." };
+    if (textData) {
+        // Case 1: Extracted text from Word/Excel
+        parts = [{ text: `Extract structured invoice data from the following text content. \n\nTEXT CONTENT:\n${textData}` }];
+    } else if (fileBase64 && mimeType) {
+        // Case 2: Image or PDF file
+        const filePart = { inlineData: { mimeType, data: fileBase64 } };
+        const textPart = { text: "Extract all key information from this invoice. Provide details for each line item including description, quantity, unit price, and total. Ensure the total amount matches the sum of line items if possible." };
+        parts = [filePart, textPart];
+    } else {
+        throw new Error('Missing file data or text data for extraction.');
+    }
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: { parts: [filePart, textPart] },
+        contents: { parts },
         config: { responseMimeType: "application/json", responseSchema: extractSchema },
     });
 
     const responseText = response.text;
     
     if (!responseText) {
-        throw new Error("The AI model could not process this image. It might be flagged by safety filters or contains no readable text.");
+        throw new Error("The AI model could not process this invoice. It might be flagged by safety filters or contains no readable data.");
     }
 
     const cleanedText = cleanJsonString(responseText);
@@ -138,7 +148,7 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
         parsedJson = JSON.parse(cleanedText);
     } catch (error) {
         console.error("JSON Parse Error on text:", responseText);
-        throw new Error("The AI extracted data but the format was invalid. Please try a clearer image.");
+        throw new Error("The AI extracted data but the format was invalid.");
     }
 
     const sanitizedData: Omit<Invoice, 'id' | 'uploaderEmail'> = {
@@ -154,12 +164,12 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
             total: safeParseFloat(item.total),
         })) : [],
         paymentStatus: 'unpaid', 
-        sourceFileBase64: fileBase64, 
-        sourceFileMimeType: mimeType,
+        sourceFileBase64: fileBase64 || '', 
+        sourceFileMimeType: mimeType || 'text/plain',
     };
 
     if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {
-        throw new Error("The AI processed the file but couldn't find any invoice details. Please ensure the image is a valid invoice.");
+        throw new Error("The AI processed the input but couldn't find sufficient invoice details.");
     }
     
     return sanitizedData;
