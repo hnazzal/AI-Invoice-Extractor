@@ -84,16 +84,17 @@ const StatusPillFilter = ({ value, onChange, translations, lang }: { value: stri
   );
 };
 
-const UploadOptionCard = ({ icon, title, subtitle, onClick }) => (
+// Update UploadOptionCard to accept className for grid spanning
+const UploadOptionCard = ({ icon, title, subtitle, onClick, className = "" }) => (
     <div 
         onClick={onClick}
-        className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group h-full min-h-[160px]"
+        className={`flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer text-center group h-full min-h-[140px] ${className}`}
     >
-        <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
+        <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-3 transition-colors duration-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">
             {icon}
         </div>
-        <h3 className="font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{subtitle}</p>
+        <h3 className="font-semibold text-sm md:text-base text-slate-800 dark:text-slate-200 leading-tight">{title}</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">{subtitle}</p>
     </div>
 );
 
@@ -130,7 +131,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [isDeleteSelectedConfirmOpen, setIsDeleteSelectedConfirmOpen] = useState(false);
 
   const colsDropdownRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Separate Refs for different upload types
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -195,9 +201,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       console.error(error);
     } finally {
       setIsProcessing(false);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      // Reset all inputs
+      if(docInputRef.current) docInputRef.current.value = "";
+      if(imgInputRef.current) imgInputRef.current.value = "";
+      if(scannerInputRef.current) scannerInputRef.current.value = "";
     }
   };
 
@@ -216,7 +223,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       const startCamera = async () => {
           if (isCameraOpen && videoRef.current) {
               try {
-                  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                  stream = await navigator.mediaDevices.getUserMedia({ 
+                      video: { 
+                          facingMode: 'environment',
+                          width: { ideal: 1920 },
+                          height: { ideal: 1080 } 
+                      } 
+                  });
                   videoRef.current.srcObject = stream;
               } catch (err) {
                   console.error("Camera access denied:", err);
@@ -250,19 +263,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       setCameraError('');
       setCapturedImage(null);
       setIsCameraOpen(true);
+      // Disable scrolling on body when camera is open
+      document.body.style.overflow = 'hidden';
   };
 
   const handleCloseCamera = () => {
       setIsCameraOpen(false);
       setCapturedImage(null);
+      // Re-enable scrolling
+      document.body.style.overflow = '';
   };
 
   const handleCapture = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      
+      // Set canvas dimensions to match video stream
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -427,44 +447,64 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {isProcessing ? (
                 <ProcessingLoader translations={translations} />
             ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                     {/* 1. Upload File */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                     {/* 1. Upload Document */}
                      <UploadOptionCard
-                        onClick={() => fileInputRef.current?.click()}
-                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>}
-                        title={translations.uploadImageOrPDF}
-                        subtitle={translations.chooseFile}
+                        onClick={() => docInputRef.current?.click()}
+                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                        title={translations.uploadPDF}
+                        subtitle="PDF, Word, Excel"
+                    />
+
+                     {/* 2. Upload Image */}
+                     <UploadOptionCard
+                        onClick={() => imgInputRef.current?.click()}
+                        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+                        title={translations.uploadImageOrPDF.replace('PDF, ', '').split(',')[0]} // "Upload Image" roughly
+                        subtitle="JPG, PNG"
                     />
                     
-                     {/* 2. From Scanner (Button triggers file input for now, but distinct UI) */}
+                     {/* 3. From Scanner */}
                      <UploadOptionCard
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => scannerInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>}
                         title={translations.fromScanner}
                         subtitle={translations.chooseFile}
                     />
 
-                    {/* Hidden Input reused for both upload and scanner buttons */}
+                    {/* Inputs */}
                     <input
-                        ref={fileInputRef} type="file" onChange={handleFileChange}
-                        accept="application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        ref={docInputRef} type="file" onChange={handleFileChange}
+                        accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                    />
+                     <input
+                        ref={imgInputRef} type="file" onChange={handleFileChange}
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                    />
+                     <input
+                        ref={scannerInputRef} type="file" onChange={handleFileChange}
+                        accept="image/*,application/pdf"
+                        capture="environment"
                         className="hidden"
                     />
                      
-                     {/* 3. Camera */}
+                     {/* 4. Camera */}
                      <UploadOptionCard
                         onClick={handleOpenCamera}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                         title={translations.scanWithCamera}
-                        subtitle={translations.or}
+                        subtitle={translations.capture}
                     />
                     
-                    {/* 4. Manual */}
+                    {/* 5. Manual - Span 2 columns on mobile to look centered/better */}
                     <UploadOptionCard
                         onClick={() => setIsManualEntryOpen(true)}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>}
                         title={translations.addManually}
                         subtitle={translations.manualInvoiceEntry}
+                        className="col-span-2 md:col-span-1"
                     />
                 </div>
             )}
@@ -477,22 +517,35 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         )}
 
         {isCameraOpen && (
-            <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
-                <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover ${capturedImage ? 'hidden' : 'block'}`}></video>
-                {capturedImage && <img src={capturedImage} alt="Captured" className="w-full h-full object-contain" />}
-                <canvas ref={canvasRef} className="hidden"></canvas>
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-black/50 flex justify-center items-center gap-4">
-                    <button onClick={handleCloseCamera} className="absolute top-4 right-4 text-white text-2xl">&times;</button>
-                    {capturedImage ? (
-                        <>
-                            <button onClick={handleRetake} className="px-4 py-2 text-white bg-slate-600 rounded-lg">{translations.retake}</button>
-                            <button onClick={handleUsePhoto} className="px-4 py-2 text-white bg-indigo-600 rounded-lg">{translations.usePhoto}</button>
-                        </>
-                    ) : (
-                        <button onClick={handleCapture} className="w-20 h-20 rounded-full bg-white border-4 border-slate-400" aria-label={translations.capture}></button>
-                    )}
+            <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center p-0 md:p-4 h-[100dvh] w-screen touch-none">
+                <div className="relative w-full h-full md:max-w-lg md:aspect-[3/4] md:h-auto bg-black md:rounded-3xl overflow-hidden shadow-2xl border-0 md:border border-slate-700">
+                    <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover ${capturedImage ? 'hidden' : 'block'}`}></video>
+                    {capturedImage && <img src={capturedImage} alt="Captured" className="w-full h-full object-contain bg-black" />}
+                    <canvas ref={canvasRef} className="hidden"></canvas>
+                    
+                    {/* Camera Controls Overlay */}
+                    <div className="absolute top-0 left-0 right-0 p-4 pt-8 md:pt-4 flex justify-end bg-gradient-to-b from-black/50 to-transparent z-10">
+                        <button onClick={handleCloseCamera} className="text-white bg-black/40 hover:bg-black/60 rounded-full p-3 backdrop-blur-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-center items-center gap-8 z-10">
+                        {capturedImage ? (
+                            <>
+                                <button onClick={handleRetake} className="px-6 py-3 text-white bg-slate-700 hover:bg-slate-600 rounded-full font-medium backdrop-blur-md border border-slate-500/50">{translations.retake}</button>
+                                <button onClick={handleUsePhoto} className="px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-500 rounded-full font-medium shadow-lg shadow-indigo-500/30">{translations.usePhoto}</button>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={handleCapture} 
+                                className="w-20 h-20 rounded-full bg-white border-[6px] border-slate-300/50 shadow-[0_0_20px_rgba(255,255,255,0.4)] active:scale-95 transition-transform" 
+                                aria-label={translations.capture}
+                            ></button>
+                        )}
+                    </div>
+                    {cameraError && <p className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center text-sm text-red-500 bg-black/70 px-4 py-2 rounded-lg backdrop-blur-md z-20">{cameraError}</p>}
                 </div>
-                {cameraError && <p className="absolute top-4 text-center text-sm text-red-500 bg-black/50 p-2 rounded">{cameraError}</p>}
             </div>
         )}
 
