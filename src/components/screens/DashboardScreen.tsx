@@ -1,9 +1,9 @@
-
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
 import * as geminiService from '../../services/geminiService';
 import * as dbService from '../../services/dbService';
 import InvoiceTable from '../shared/InvoiceTable';
+import InvoiceGrid from '../shared/InvoiceGrid';
 import ProcessingLoader from '../shared/ProcessingLoader';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
@@ -119,6 +119,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
@@ -522,6 +523,24 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
+                    
+                     <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+                        <button 
+                            onClick={() => setViewMode('list')}
+                            className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`}
+                            title={translations.listView}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('grid')}
+                            className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`}
+                            title={translations.gridView}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                        </button>
+                    </div>
+
                     <div className="relative" ref={colsDropdownRef}>
                         <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
@@ -558,14 +577,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             )}
 
             {invoices.length > 0 ? (
-                <InvoiceTable 
-                    invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                    onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                    onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
-                    columnVisibility={columnVisibility}
-                    selectedInvoiceIds={selectedInvoiceIds}
-                    onSelectionChange={setSelectedInvoiceIds}
-                />
+                viewMode === 'list' ? (
+                    <InvoiceTable 
+                        invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                        onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                        onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
+                        columnVisibility={columnVisibility}
+                        selectedInvoiceIds={selectedInvoiceIds}
+                        onSelectionChange={setSelectedInvoiceIds}
+                    />
+                ) : (
+                    <InvoiceGrid 
+                        invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                        onInvoiceClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                        onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={handleTogglePaymentStatus}
+                    />
+                )
             ) : (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
