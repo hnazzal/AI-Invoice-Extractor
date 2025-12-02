@@ -119,6 +119,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const [newlyExtractedInvoice, setNewlyExtractedInvoice] = useState<Invoice | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -384,11 +385,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const filteredInvoices = useMemo(() => {
     return invoices.filter(invoice => {
         const lowerSearchTerm = searchTerm.toLowerCase();
+        const lowerItemSearchTerm = itemSearchTerm.toLowerCase();
+
         const matchesSearch = 
             invoice.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
             invoice.vendorName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.customerName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
+
+        // New Item Filter Logic: Check if any item description includes the item search term
+        const matchesItemFilter = !lowerItemSearchTerm || invoice.items.some(item => item.description.toLowerCase().includes(lowerItemSearchTerm));
 
         const invoiceDate = new Date(invoice.invoiceDate);
         const fromDate = dateFrom ? new Date(dateFrom) : null;
@@ -402,9 +408,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         const matchesStatus = statusFilter === 'all' || invoice.paymentStatus === statusFilter;
 
-        return matchesSearch && matchesDate && matchesStatus;
+        return matchesSearch && matchesItemFilter && matchesDate && matchesStatus;
     });
-  }, [invoices, searchTerm, dateFrom, dateTo, statusFilter]);
+  }, [invoices, searchTerm, itemSearchTerm, dateFrom, dateTo, statusFilter]);
   
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>({
       invoiceNumber: true, invoiceDate: true, vendorName: true, customerName: true,
@@ -413,6 +419,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
 
   const handleClearFilters = () => {
     setSearchTerm('');
+    setItemSearchTerm('');
     setDateFrom('');
     setDateTo('');
     setStatusFilter('all');
@@ -538,7 +545,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 title={translations.topItemStat} 
                 value={topItem} 
                 gradient="bg-gradient-to-br from-teal-500 to-emerald-600" 
-                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>} 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>} 
             />
         </section>
 
@@ -688,6 +695,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
                 <div className="flex flex-wrap items-center gap-4">
                     <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="text" placeholder={translations.filterItem} value={itemSearchTerm} onChange={e => setItemSearchTerm(e.target.value)}
                         className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
