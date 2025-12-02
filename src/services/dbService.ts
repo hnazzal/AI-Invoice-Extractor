@@ -1,3 +1,4 @@
+
 import type { User, Invoice, InvoiceItem } from '../types';
 import { config, isDbConfigured } from '../config';
 
@@ -44,10 +45,14 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
 
 // --- User Management ---
 
-export const signUpUser = async (email: string, password: string): Promise<any> => {
+export const signUpUser = async (email: string, password: string, companyName?: string): Promise<any> => {
     return apiFetch('/auth/v1/signup', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+            email, 
+            password,
+            data: { company_name: companyName } // Store company name in user metadata
+        }),
     });
 };
 
@@ -61,6 +66,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
         id: response.user.id,
         email: response.user.email,
         token: response.access_token,
+        companyName: response.user.user_metadata?.company_name, // Retrieve company name
     };
 };
 

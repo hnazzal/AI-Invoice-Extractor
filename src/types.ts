@@ -3,6 +3,7 @@ export interface User {
   id: string;
   email: string;
   token: string;
+  companyName?: string;
 }
 
 export type Language = 'en' | 'ar';

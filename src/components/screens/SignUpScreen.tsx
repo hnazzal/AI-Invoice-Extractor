@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Translations } from '../../types';
 import * as dbService from '../../services/dbService';
@@ -11,6 +12,7 @@ interface SignUpScreenProps {
 const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSwitchToLogin, translations }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +24,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSwitchToLogin, translatio
     setIsLoading(true);
 
     try {
-      await dbService.signUpUser(email, password);
+      await dbService.signUpUser(email, password, companyName);
       setSuccess(translations.signupSuccess);
       setTimeout(() => {
         onSwitchToLogin();
@@ -51,6 +53,18 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSwitchToLogin, translatio
               <p className="mt-2 text-slate-500 dark:text-slate-400">{translations.signupSubtitle}</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="company-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 text-start">{translations.companyName}</label>
+                <input
+                  id="company-name"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder={translations.companyPlaceholder}
+                  required
+                  className="mt-1 block w-full px-4 py-3 bg-white/50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
               <div>
                 <label htmlFor="signup-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 text-start">{translations.email}</label>
                 <input
