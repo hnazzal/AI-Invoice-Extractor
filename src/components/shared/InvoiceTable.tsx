@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Invoice, Translations, Currency, Language } from '../../types';
 
@@ -73,21 +72,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
 
   const ALL_COLUMNS_CONFIG = useMemo(() => {
       const cols = [
-        { key: 'invoiceNumber', label: translations.invoiceNumber, width: 120, align: 'start' },
-        { key: 'invoiceDate', label: translations.invoiceDate, width: 110, align: 'start' },
-        { key: 'vendorName', label: translations.vendorName, width: 180, align: 'start' },
-        { key: 'customerName', label: translations.customerName, width: 180, align: 'start' },
-        { key: 'paymentStatus', label: translations.paymentStatus, width: 120, align: 'center' },
-        { key: 'items', label: translations.items, width: 80, align: 'center' },
-        { key: 'totalAmount', label: translations.totalAmount, width: 140, align: 'end' },
+        { key: 'invoiceNumber', label: translations.invoiceNumber, width: 140, align: 'start' },
+        { key: 'invoiceDate', label: translations.invoiceDate, width: 130, align: 'start' },
+        { key: 'vendorName', label: translations.vendorName, width: 200, align: 'start' },
+        { key: 'customerName', label: translations.customerName, width: 200, align: 'start' },
+        { key: 'paymentStatus', label: translations.paymentStatus, width: 140, align: 'center' },
+        { key: 'items', label: translations.items, width: 100, align: 'center' },
+        { key: 'totalAmount', label: translations.totalAmount, width: 160, align: 'end' },
       ];
 
-      // Add Admin specific columns
       if (isAdminView) {
-          cols.push({ key: 'uploader', label: translations.uploader, width: 200, align: 'start' });
-          cols.push({ key: 'processingCost', label: translations.processingCost, width: 120, align: 'end' });
+          cols.push({ key: 'uploader', label: translations.uploader, width: 220, align: 'start' });
+          cols.push({ key: 'processingCost', label: translations.processingCost, width: 140, align: 'end' });
       } else {
-          cols.push({ key: 'uploader', label: translations.uploader, width: 200, align: 'start' });
+          cols.push({ key: 'uploader', label: translations.uploader, width: 220, align: 'start' });
       }
 
       if (canPerformActions) {
@@ -98,10 +96,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
   }, [translations, canPerformActions, isAdminView]);
 
   const visibleColumns = useMemo(() => {
-    // If admin view, force show extra columns if they are not explicitly disabled in visibility map
-    // (Or assume visibility map handles them if passed correctly from parent)
     return ALL_COLUMNS_CONFIG.filter(col => {
-        // Special case: admin columns might not be in default columnVisibility map from dashboard
         if (col.key === 'processingCost' && isAdminView) return true;
         return columnVisibility[col.key] !== false; 
     });
@@ -133,14 +128,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingState) return;
-      
       const { key, startX, startWidth } = resizingState;
       const newWidth = Math.max(startWidth + e.clientX - startX, MIN_COLUMN_WIDTH);
-      
-      setColumnWidths(prev => ({
-        ...prev,
-        [key]: newWidth,
-      }));
+      setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
     };
 
     const handleMouseUp = () => {
@@ -165,59 +155,51 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
 
   const renderCellContent = (invoice: Invoice, columnKey: string) => {
     switch(columnKey) {
-      case 'invoiceNumber': return <span className="font-medium text-slate-900 dark:text-slate-100">{invoice.invoiceNumber}</span>;
-      case 'invoiceDate': return invoice.invoiceDate;
-      case 'vendorName': return invoice.vendorName;
-      case 'customerName': return invoice.customerName;
-      case 'items': return invoice.items?.length || 0;
+      case 'invoiceNumber': return <span className="font-bold text-slate-800 dark:text-slate-100">{invoice.invoiceNumber}</span>;
+      case 'invoiceDate': return <span className="text-slate-500 dark:text-slate-400">{invoice.invoiceDate}</span>;
+      case 'vendorName': return <span className="font-medium text-slate-700 dark:text-slate-200">{invoice.vendorName}</span>;
+      case 'customerName': return <span className="text-slate-600 dark:text-slate-300">{invoice.customerName}</span>;
+      case 'items': return <span className="inline-block bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs font-semibold">{invoice.items?.length || 0}</span>;
       case 'paymentStatus':
         const isPaid = invoice.paymentStatus === 'paid';
-        const statusClass = isPaid 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
-            : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
         return (
-            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}`}>
+            <span className={`px-4 py-1.5 inline-flex text-xs font-bold uppercase tracking-wide rounded-full ${
+                isPaid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+            }`}>
                 {translations[invoice.paymentStatus]}
             </span>
         );
-      case 'totalAmount': return <span className="font-semibold text-indigo-600 dark:text-indigo-400">{formatCurrency(invoice.totalAmount)}</span>;
+      case 'totalAmount': return <span className="font-bold text-indigo-600 dark:text-indigo-400 text-base">{formatCurrency(invoice.totalAmount)}</span>;
       case 'uploader': 
         return (
             <div className="flex flex-col">
-                <span className="text-slate-700 dark:text-slate-200">{invoice.uploaderEmail}</span>
-                {invoice.uploaderCompany && <span className="text-xs text-slate-500">{invoice.uploaderCompany}</span>}
+                <span className="text-sm text-slate-700 dark:text-slate-200 font-medium">{invoice.uploaderEmail}</span>
+                {invoice.uploaderCompany && <span className="text-xs text-slate-400 uppercase tracking-wider">{invoice.uploaderCompany}</span>}
             </div>
         );
       case 'processingCost':
         return invoice.processingCost !== undefined 
-            ? <span className="font-mono text-slate-600 dark:text-slate-400">${invoice.processingCost.toFixed(6)}</span> 
+            ? <span className="font-mono text-slate-500 text-xs">${invoice.processingCost.toFixed(6)}</span> 
             : '-';
       case 'actions': return (
-        <div className="flex justify-end items-center gap-1">
+        <div className="flex justify-end items-center gap-2">
             {invoice.paymentStatus === 'unpaid' && invoice.id && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onTogglePaymentStatus(invoice.id!); }}
-                    className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50" 
+                    className="p-2 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" 
                     title={translations.markAsPaid}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                 </button>
             )}
             <button 
                 onClick={(e) => { e.stopPropagation(); onViewClick(invoice); }} 
                 disabled={!invoice.sourceFileBase64}
-                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent" 
+                className="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all disabled:opacity-30" 
                 title={translations.show}>
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             </button>
-            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500 p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors" title={translations.deleteInvoice}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
-              </svg>
+            <button onClick={(e) => { e.stopPropagation(); if (invoice.id) onDeleteClick(invoice.id); }} className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all" title={translations.deleteInvoice}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
         </div>
       );
@@ -238,24 +220,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-slate-200/50 dark:divide-slate-700/50" style={{ tableLayout: 'fixed' }}>
+      <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700" style={{ tableLayout: 'fixed' }}>
         <colgroup>
-          {canPerformActions && <col style={{ width: '48px' }} />}
+          {canPerformActions && <col style={{ width: '60px' }} />}
           {visibleColumns.map(col => (
             <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />
           ))}
         </colgroup>
-        <thead className="bg-white/10 dark:bg-slate-700/10">
-          <tr>
+        <thead>
+          <tr className="bg-slate-50/50 dark:bg-slate-800/50">
             {canPerformActions && (
-              <th scope="col" className="px-6 py-4">
+              <th scope="col" className="px-6 py-5">
                 <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-500 text-indigo-600 focus:ring-indigo-500 bg-transparent"
+                    className="w-5 h-5 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                     ref={headerCheckboxRef}
                     checked={isAllSelected}
                     onChange={handleSelectAll}
-                    aria-label="Select all invoices"
                 />
               </th>
             )}
@@ -263,61 +244,59 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
                <th 
                 key={col.key} 
                 scope="col" 
-                className={`px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wider relative text-${col.align || 'start'}`}
+                className={`px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest relative text-${col.align || 'start'}`}
               >
                 {col.label}
                  <div
                     onMouseDown={(e) => handleMouseDown(e, col.key)}
-                    className="absolute top-0 right-0 h-full w-2 cursor-col-resize group"
-                    title={`Resize ${col.label} column`}
+                    className="absolute top-0 right-0 h-full w-4 cursor-col-resize group flex justify-center"
                   >
-                    <div className={`w-px h-full ${resizingState?.key === col.key ? 'bg-indigo-400' : 'bg-transparent group-hover:bg-slate-300 dark:group-hover:bg-slate-500'} transition-colors`} />
+                    <div className={`w-0.5 h-full ${resizingState?.key === col.key ? 'bg-indigo-400' : 'bg-transparent group-hover:bg-slate-200'} transition-colors`} />
                   </div>
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
+        <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
           {invoices.map((invoice, index) => (
             <tr 
               key={invoice.id || invoice.clientId || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
-              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10 ${invoice.id && selectedInvoiceIds.has(invoice.id) ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
+              className={`${canPerformActions ? "cursor-pointer" : ""} hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-200 ${invoice.id && selectedInvoiceIds.has(invoice.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
             >
               {canPerformActions && (
-                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
                     {invoice.id && (
                         <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 dark:border-slate-500 text-indigo-600 focus:ring-indigo-500 bg-transparent"
+                            className="w-5 h-5 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                             checked={selectedInvoiceIds.has(invoice.id)}
                             onChange={() => handleSelectOne(invoice.id!)}
-                            aria-labelledby={`invoice-vendor-${invoice.id}`}
                         />
                     )}
                 </td>
               )}
               {visibleColumns.map(col => (
-                <td key={col.key} id={col.key === 'vendorName' ? `invoice-vendor-${invoice.id}` : undefined} className={`px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 text-${col.align}`}>
+                <td key={col.key} className={`px-6 py-5 whitespace-nowrap text-sm text-${col.align}`}>
                   {renderCellContent(invoice, col.key)}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-slate-300 dark:border-slate-600 bg-white/20 dark:bg-white/10 font-semibold">
+        <tfoot className="bg-slate-50/50 dark:bg-slate-800/50">
           <tr>
-             {canPerformActions && <td className="px-6 py-4"></td>}
+             {canPerformActions && <td className="px-6 py-5"></td>}
              {summaryColSpan > 0 && (
-                <td colSpan={summaryColSpan} className="px-6 py-4 text-start text-sm text-slate-700 dark:text-slate-200">
+                <td colSpan={summaryColSpan} className="px-6 py-5 text-start text-sm font-medium text-slate-500">
                     {`${translations.totalInvoices}: ${invoices.length}`}
                 </td>
              )}
-            <td colSpan={totalColSpan} className="px-6 py-4 text-end">
-                <span className="uppercase text-sm text-slate-700 dark:text-slate-200 me-4">{translations.grandTotal}</span>
-                <span className="text-lg text-indigo-700 dark:text-indigo-400">{formatCurrency(grandTotal)}</span>
+            <td colSpan={totalColSpan} className="px-6 py-5 text-end">
+                <span className="uppercase text-xs font-bold text-slate-400 tracking-wider me-4">{translations.grandTotal}</span>
+                <span className="text-xl font-extrabold text-slate-800 dark:text-white">{formatCurrency(grandTotal)}</span>
             </td>
-            {actionsColSpan > 0 && <td className="px-6 py-4"></td>}
+            {actionsColSpan > 0 && <td className="px-6 py-5"></td>}
           </tr>
         </tfoot>
       </table>
