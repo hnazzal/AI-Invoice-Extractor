@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
@@ -65,15 +66,15 @@ const StatusPillFilter = ({ value, onChange, translations }: { value: string, on
   ];
 
   return (
-    <div className="flex p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+    <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
       {options.map(option => (
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
             value === option.value 
             ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
           {option.label}
@@ -460,82 +461,115 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             </section>
         )}
 
-        {/* Main List */}
-        <section className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-sm border border-white/50 dark:border-slate-800 p-6">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-8">
+        {/* Main List & Filters Section */}
+        <section className="space-y-6">
+            
+            {/* Title & Stats */}
+            <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
                         {translations.savedInvoices}
-                        <span className="bg-indigo-100 text-indigo-600 text-sm px-3 py-1 rounded-full">{invoices.length}</span>
+                        <span className="bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400 text-sm px-3 py-1 rounded-full border border-indigo-100 dark:border-slate-700">{invoices.length}</span>
                     </h2>
                 </div>
                 
-                <div className="flex flex-col lg:flex-row gap-3 w-full xl:w-auto">
-                    {/* Search & Filters */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-grow sm:w-72">
-                            <input 
-                                type="text" 
-                                placeholder={translations.searchPlaceholder} 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                                className="input-modern ps-11"
-                            />
-                            <svg className="absolute start-4 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        </div>
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="input-modern sm:w-auto" />
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="input-modern sm:w-auto" />
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="hidden md:block">
-                            <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} />
-                        </div>
-                        
-                        {/* View Toggles */}
-                        <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm">
-                            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400'}`}>
-                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                            </button>
-                            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400'}`}>
-                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                            </button>
-                        </div>
-
-                        <button onClick={handleExportToExcel} className="p-3 bg-white dark:bg-slate-800 text-green-600 rounded-xl shadow-sm hover:shadow-md transition-shadow" title={translations.exportToExcel}>
-                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                {/* Batch Action */}
+                {selectedInvoiceIds.size > 0 && (
+                    <div className="flex items-center gap-4 bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/30 animate-fade-in-up">
+                        <span className="font-bold text-sm">{translations.countSelected.replace('{count}', selectedInvoiceIds.size.toString())}</span>
+                        <div className="h-4 w-px bg-white/30"></div>
+                        <button onClick={() => setIsDeleteSelectedConfirmOpen(true)} className="text-sm font-bold hover:text-red-200 transition-colors">
+                            {translations.deleteSelected}
                         </button>
-
-                        <button onClick={handleClearFilters} className="text-sm font-bold text-slate-400 hover:text-indigo-500 transition-colors">{translations.clearFilters}</button>
                     </div>
-                </div>
+                )}
             </div>
-            
-            {/* Batch Actions */}
-            {selectedInvoiceIds.size > 0 && (
-                <div className="flex items-center justify-between mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl animate-fade-in-up">
-                    <span className="font-bold text-indigo-700 dark:text-indigo-300">
-                        {translations.countSelected.replace('{count}', selectedInvoiceIds.size.toString())}
-                    </span>
-                    <button onClick={() => setIsDeleteSelectedConfirmOpen(true)} className="px-5 py-2 bg-white text-red-600 font-bold rounded-xl shadow-sm hover:bg-red-50 transition-colors">
-                        {translations.deleteSelected}
+
+            {/* Unified Floating Toolbar */}
+            <div className="bg-white dark:bg-slate-800/80 backdrop-blur-xl p-2 rounded-2xl shadow-soft border border-white/50 dark:border-slate-700 flex flex-col xl:flex-row gap-3">
+                
+                {/* Search Group */}
+                <div className="flex flex-col sm:flex-row flex-grow gap-2">
+                    <div className="relative flex-grow">
+                        <div className="absolute inset-y-0 start-0 flex items-center ps-4 pointer-events-none">
+                            <svg className="w-5 h-5 text-slate-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            className="block w-full p-3 ps-11 text-sm text-slate-900 border border-slate-200 rounded-xl bg-slate-50 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700/50 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm" 
+                            placeholder={translations.searchPlaceholder} 
+                            value={searchTerm} 
+                            onChange={e => setSearchTerm(e.target.value)} 
+                        />
+                    </div>
+                    
+                    <input 
+                        type="date" 
+                        value={dateFrom} 
+                        onChange={e => setDateFrom(e.target.value)} 
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:w-auto p-3 dark:bg-slate-700/50 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" 
+                    />
+                    <input 
+                        type="date" 
+                        value={dateTo} 
+                        onChange={e => setDateTo(e.target.value)} 
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:w-auto p-3 dark:bg-slate-700/50 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" 
+                    />
+                </div>
+
+                <div className="h-px xl:h-auto xl:w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                {/* Filter & View Controls */}
+                <div className="flex flex-wrap items-center gap-2">
+                    
+                    <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} />
+
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl">
+                        <button 
+                            onClick={() => setViewMode('list')} 
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('grid')} 
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                        </button>
+                    </div>
+
+                    <button 
+                        onClick={handleExportToExcel}
+                        className="p-3 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors" 
+                        title={translations.exportToExcel}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </button>
+
+                    <button 
+                        onClick={handleClearFilters} 
+                        className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                        title={translations.clearFilters}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-            )}
+            </div>
 
             {/* List/Grid Content */}
             {invoices.length > 0 ? (
                 viewMode === 'list' ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-soft">
-                        <InvoiceTable 
-                            invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
-                            onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
-                            onViewClick={(inv) => setInvoiceFileToView({base64: inv.sourceFileBase64!, mimeType: inv.sourceFileMimeType!})} onTogglePaymentStatus={handleTogglePaymentStatus}
-                            columnVisibility={columnVisibility}
-                            selectedInvoiceIds={selectedInvoiceIds}
-                            onSelectionChange={setSelectedInvoiceIds}
-                        />
-                    </div>
+                    <InvoiceTable 
+                        invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
+                        onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} onDeleteClick={(id) => setInvoiceToDelete(id)}
+                        onViewClick={(inv) => setInvoiceFileToView({base64: inv.sourceFileBase64!, mimeType: inv.sourceFileMimeType!})} onTogglePaymentStatus={handleTogglePaymentStatus}
+                        columnVisibility={columnVisibility}
+                        selectedInvoiceIds={selectedInvoiceIds}
+                        onSelectionChange={setSelectedInvoiceIds}
+                    />
                 ) : (
                     <InvoiceGrid 
                         invoices={filteredInvoices} translations={translations} currency={currency} language={lang}
@@ -544,11 +578,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     />
                 )
             ) : (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                    <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <div className="flex flex-col items-center justify-center py-24 text-center bg-white/50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                    <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
-                    <p className="text-slate-400 font-medium text-lg">{translations.noInvoices}</p>
+                    <p className="text-slate-400 font-medium">{translations.noInvoices}</p>
                 </div>
             )}
         </section>
