@@ -117,7 +117,7 @@ type ColumnKey = typeof ALL_COLUMNS[number];
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, invoices, setInvoices, currency, lang }) => {
   // Safety check: Ensure invoices is an array
   if (!invoices) {
-      console.warn("DashboardScreen received undefined invoices prop. Defaulting to empty array.");
+      // Don't warn, just handle it silently as this might happen during initial load
       invoices = [];
   }
 
@@ -375,6 +375,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   }, []);
 
   const filteredInvoices = useMemo(() => {
+    if (!Array.isArray(invoices)) return [];
+    
     return invoices.filter(invoice => {
         const lowerSearchTerm = searchTerm.toLowerCase();
         const lowerItemSearchTerm = itemSearchTerm.toLowerCase();

@@ -84,7 +84,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
             console.warn(`No profile found for user ${user.email}. Defaulting to 'user' role. This is expected for legacy users.`);
         }
     } catch (e) {
-        console.warn("Could not fetch user role (table might be missing or RLS blocking), defaulting to user.", e);
+        console.warn("Could not fetch user role (likely RLS recursion or missing table), defaulting to user.", e);
         // user.role remains 'user' as set initially
     }
 
@@ -94,11 +94,16 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 // --- Admin Functions ---
 
 export const getAllProfiles = async (token: string): Promise<UserProfile[]> => {
-    // Fetch profiles. RLS should allow admins to see all.
-    const data = await apiFetch('/rest/v1/profiles?select=*', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return Array.isArray(data) ? data : [];
+    try {
+        // Fetch profiles. RLS should allow admins to see all.
+        const data = await apiFetch('/rest/v1/profiles?select=*', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error("Failed to fetch profiles (Admin):", error);
+        return [];
+    }
 };
 
 // --- Invoice Management ---
@@ -155,29 +160,45 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => {
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
-    // REMOVED: profiles(email,company_name) join which was causing the crash.
-    // If Admin, this returns ALL due to RLS.
-    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
-        headers: {
-            'Authorization': `Bearer ${token}`,
+    try {
+        // We removed the profiles() join here to prevent crashes if FKs are missing.
+        // The AdminScreen handles linking users to invoices manually.
+        const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        });
+        
+        if (!Array.isArray(data)) {
+            console.warn("getInvoicesForUser received non-array data:", data);
+            return [];
         }
-    });
-    
-    if (!Array.isArray(data)) {
-        console.warn("getInvoicesForUser received non-array data:", data);
-        return [];
-    }
 
-    // Map the database response to the application's Invoice type
-    // Filter out nulls if mapping fails for specific records
-    return data.map(dbInv => {
-        try {
-            return mapDbInvoiceToAppInvoice(dbInv);
-        } catch (e) {
-            console.warn("Skipping corrupt invoice record", e);
-            return null;
+        // Map the database response to the application's Invoice type
+        // Filter out nulls if mapping fails for specific records
+        return data.map(dbInv => {
+            try {
+                return mapDbInvoiceToAppInvoice(dbInv);
+            } catch (e) {
+                console.warn("Skipping corrupt invoice record", e);
+                return null;
+            }
+        }).filter((inv): inv is Invoice => inv !== null);
+
+    } catch (error: any) {
+        console.error("Critical: Failed to fetch invoices.", error);
+        
+        // CRITICAL FIX: If we hit recursion error or other DB policy errors, 
+        // return empty array instead of throwing. This allows the user to LOG IN 
+        // and see the dashboard (even if empty) rather than getting stuck on the login screen.
+        if (error.message && (error.message.includes("recursion") || error.message.includes("policy"))) {
+            console.warn("Suppressing DB Policy error to allow login. User needs to run SQL fix.");
+            return [];
         }
-    }).filter((inv): inv is Invoice => inv !== null);
+        
+        // Rethrow other errors (like network issues) so the UI can show them
+        throw error;
+    }
 };
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {

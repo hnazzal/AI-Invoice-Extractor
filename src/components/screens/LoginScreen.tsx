@@ -32,7 +32,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
       const errorMessage = err.message || err.error_description || JSON.stringify(err);
       
       // FORCE SHOW ERROR IN ALERT to ensure visibility even if UI freezes
-      window.alert(`Login Error: ${errorMessage}`);
+      // Only alert if it's NOT the "user cancelled" or standard "invalid credentials" flow if desired,
+      // but for debugging, alerting everything is safer.
+      if (!errorMessage.includes("Invalid login credentials")) {
+         window.alert(`Login Error: ${errorMessage}`);
+      }
 
       // If it's a generic "Invalid login credentials", show translation, otherwise show technical details
       if (errorMessage.includes("Invalid login credentials")) {
