@@ -1,5 +1,4 @@
 
-
 import type { User, Invoice, InvoiceItem, UserProfile } from '../types';
 import { config, isDbConfigured } from '../config';
 
@@ -63,11 +62,13 @@ export const loginUser = async (email: string, password: string): Promise<User> 
         body: JSON.stringify({ email, password }),
     });
 
+    // Initialize user with a default 'user' role to ensure stability even if profile fetch fails
     const user: User = {
         id: response.user.id,
         email: response.user.email,
         token: response.access_token,
         companyName: response.user.user_metadata?.company_name, // Retrieve company name
+        role: 'user', // Default role
     };
 
     // Fetch Role from profiles table
@@ -75,12 +76,16 @@ export const loginUser = async (email: string, password: string): Promise<User> 
         const profileData = await apiFetch(`/rest/v1/profiles?id=eq.${user.id}&select=role`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        if (profileData && profileData.length > 0) {
+        
+        // Only update role if we successfully got a record
+        if (Array.isArray(profileData) && profileData.length > 0) {
             user.role = profileData[0].role;
+        } else {
+            console.warn(`No profile found for user ${user.email}. Defaulting to 'user' role. This is expected for legacy users.`);
         }
     } catch (e) {
-        console.warn("Could not fetch user role, defaulting to user");
-        user.role = 'user';
+        console.warn("Could not fetch user role (table might be missing or RLS blocking), defaulting to user.", e);
+        // user.role remains 'user' as set initially
     }
 
     return user;
