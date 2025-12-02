@@ -95,11 +95,6 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
 export const getAllProfiles = async (token: string): Promise<UserProfile[]> => {
     // Fetch profiles. RLS should allow admins to see all.
-    // Also fetch aggregate data: total invoices and total spend per user.
-    // NOTE: Supabase doesn't support easy 'group by' in simple REST API without RPC or Views.
-    // For now, we will just fetch profiles and we might need to fetch invoices to calculate, 
-    // OR we can create a View in SQL.
-    // Let's assume we just list profiles first.
     return apiFetch('/rest/v1/profiles?select=*', {
         headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -141,6 +136,7 @@ const mapDbItemToAppItem = (dbItem: any): InvoiceItem => ({
 
 const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   id: dbInvoice.id,
+  userId: dbInvoice.user_id, // Map the database user_id to frontend userId
   invoiceNumber: dbInvoice.invoice_number,
   vendorName: dbInvoice.vendor_name,
   customerName: dbInvoice.customer_name,
@@ -151,16 +147,13 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   sourceFileBase64: dbInvoice.file_base_64,
   sourceFileMimeType: dbInvoice.file_mime_type,
   processingCost: dbInvoice.processing_cost || 0,
-  // If we joined with profiles, we might have uploader info
-  uploaderEmail: dbInvoice.profiles?.email,
-  uploaderCompany: dbInvoice.profiles?.company_name,
 });
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
+    // REMOVED: profiles(email,company_name) join which was causing the crash.
     // If Admin, this returns ALL due to RLS.
-    // We join with profiles to get company name and email for the "Uploader" column
-    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*),profiles(email,company_name)&order=created_at.desc', {
+    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
         headers: {
             'Authorization': `Bearer ${token}`,
         }
@@ -233,6 +226,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
     return {
         ...invoice,
         id: newInvoiceId,
+        userId: user.id,
         uploaderEmail: user.email,
         uploaderCompany: user.companyName,
     };

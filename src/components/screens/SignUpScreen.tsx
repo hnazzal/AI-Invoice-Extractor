@@ -30,13 +30,16 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSwitchToLogin, translatio
         onSwitchToLogin();
       }, 2000);
     } catch (err: any) {
-      if (err.message?.includes('User already registered')) {
+      console.error("Signup Error:", err);
+      const errorMessage = err.message || JSON.stringify(err);
+
+      if (errorMessage.includes('User already registered')) {
         setError(translations.userExists);
-      } else if (err.message?.includes('should be at least 6 characters')) {
+      } else if (errorMessage.includes('should be at least 6 characters')) {
         setError(translations.passwordTooShort);
       } else {
-        setError(translations.signupError);
-        console.error("Signup Error:", err);
+        // Show detailed error
+        setError(`Error: ${errorMessage}`);
       }
     } finally {
       setIsLoading(false);
@@ -90,8 +93,8 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSwitchToLogin, translatio
                 />
               </div>
               
-              <div className="h-10 pt-1 text-center">
-                {error && <p className="text-sm text-red-500">{error}</p>}
+              <div className="min-h-[40px] pt-1 text-center">
+                {error && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">{error}</p>}
                 {success && <p className="text-sm text-green-500">{success}</p>}
               </div>
 

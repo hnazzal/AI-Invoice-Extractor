@@ -17,6 +17,7 @@ interface AdminScreenProps {
 const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency, lang }) => {
   const [activeTab, setActiveTab] = useState<'invoices' | 'users'>('invoices');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Data State
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
@@ -33,15 +34,31 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
 
   const fetchData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
+          // Fetch data separately to avoid SQL JOIN errors
           const [invData, profData] = await Promise.all([
-              dbService.getInvoicesForUser(user.token), // RLS returns all for admin
+              dbService.getInvoicesForUser(user.token), 
               dbService.getAllProfiles(user.token)
           ]);
-          setAllInvoices(invData);
+
           setProfiles(profData);
-      } catch (error) {
+
+          // Manually join invoice data with profile data on the client side
+          const enrichedInvoices = invData.map(inv => {
+              const uploaderProfile = profData.find(p => p.id === inv.userId);
+              return {
+                  ...inv,
+                  uploaderEmail: uploaderProfile?.email || 'Unknown',
+                  uploaderCompany: uploaderProfile?.company_name || '-'
+              };
+          });
+
+          setAllInvoices(enrichedInvoices);
+
+      } catch (error: any) {
           console.error("Failed to fetch admin data", error);
+          setError(error.message || "Failed to load admin data.");
       } finally {
           setIsLoading(false);
       }
@@ -53,8 +70,9 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
       try {
           await dbService.deleteInvoiceForUser(user.token, id);
           setAllInvoices(prev => prev.filter(inv => inv.id !== id));
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
+          alert(`Failed to delete: ${e.message}`);
       }
   };
 
@@ -67,7 +85,8 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
   // Derived stats for Users tab
   const profilesWithStats = useMemo(() => {
       return profiles.map(profile => {
-          const userInvoices = allInvoices.filter(inv => inv.uploaderEmail === profile.email);
+          // Match invoices by userId (assuming we added userId to Invoice type)
+          const userInvoices = allInvoices.filter(inv => inv.userId === profile.id);
           const totalSpent = userInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
           return {
               ...profile,
@@ -96,6 +115,12 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
                 </button>
             </div>
         </div>
+
+        {error && (
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                <strong>Error:</strong> {error}
+            </div>
+        )}
 
         {isLoading ? (
             <div className="flex justify-center py-20"><Spinner /></div>

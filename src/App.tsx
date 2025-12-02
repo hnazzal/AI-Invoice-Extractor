@@ -67,7 +67,8 @@ const App: React.FC = () => {
       setScreen('dashboard');
     } catch (error) {
       console.error("Failed to load user data:", error);
-      // Here you might want to show an error to the user
+      // Re-throw the error so the LoginScreen can catch and display it
+      throw error;
     } finally {
       setIsLoading(false);
     }

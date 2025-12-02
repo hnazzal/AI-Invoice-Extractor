@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import type { User, Translations } from '../../types';
 import * as dbService from '../../services/dbService';
 import Spinner from '../shared/Spinner';
 
 interface LoginScreenProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User) => Promise<void>;
   onSwitchToSignUp: () => void;
   translations: Translations;
 }
@@ -22,9 +23,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
     setIsLoading(true);
     try {
       const user = await dbService.loginUser(email, password);
-      onLogin(user);
+      // Wait for the app to load initial data (e.g. invoices)
+      // If this fails (e.g. DB error), it will throw, and we catch it below.
+      await onLogin(user);
     } catch (err: any) {
-      setError(translations.invalidCredentials);
+      console.error("Login process failed:", err);
+      // Display the actual error message if available to help debugging
+      const errorMessage = err.message || err.error_description || JSON.stringify(err);
+      
+      // If it's a generic "Invalid login credentials", show translation, otherwise show technical details
+      if (errorMessage.includes("Invalid login credentials")) {
+          setError(translations.invalidCredentials);
+      } else {
+          setError(`Login Failed: ${errorMessage}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,8 +81,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToSignUp, tr
                   <label htmlFor="remember-me" className="ms-2 block text-sm text-slate-900 dark:text-slate-300">{translations.rememberMe}</label>
               </div>
               
-              <div className="h-5 pt-1">
-                {error && <p className="text-sm text-red-500 text-start">{error}</p>}
+              <div className="min-h-[20px] pt-1">
+                {error && <p className="text-sm text-red-600 font-medium text-start bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800 break-words">{error}</p>}
               </div>
 
               <div>

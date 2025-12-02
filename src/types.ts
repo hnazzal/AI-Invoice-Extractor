@@ -32,6 +32,7 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id?: string; // The database UUID, optional for newly extracted invoices
+  userId?: string; // The ID of the user who owns this invoice
   clientId?: string; // A temporary client-side ID for unsaved invoices
   invoiceNumber: string;
   vendorName: string;
