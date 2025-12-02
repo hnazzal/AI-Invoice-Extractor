@@ -54,9 +54,12 @@ const App: React.FC = () => {
 
   const handleLogin = useCallback(async (loggedInUser: User) => {
     setIsLoading(true);
+    console.log("Starting login process for:", loggedInUser.email);
     try {
       // Fetch invoices using the user's auth token
       const userInvoices = await dbService.getInvoicesForUser(loggedInUser.token);
+      console.log("Invoices fetched:", userInvoices?.length);
+      
       const invoicesWithUploader = userInvoices.map(invoice => ({
         ...invoice,
         uploaderEmail: loggedInUser.email,
@@ -65,6 +68,7 @@ const App: React.FC = () => {
       setInvoices(invoicesWithUploader);
       setUser(loggedInUser);
       setScreen('dashboard');
+      console.log("Login successful, screen set to dashboard");
     } catch (error) {
       console.error("Failed to load user data:", error);
       // Re-throw the error so the LoginScreen can catch and display it

@@ -13,6 +13,7 @@ import FileViewerModal from '../shared/FileViewerModal';
 import ManualInvoiceModal from '../shared/ManualInvoiceModal';
 import Chatbot from '../shared/Chatbot';
 import SmartAnalysis from '../shared/SmartAnalysis';
+import Spinner from '../shared/Spinner'; // Ensure Spinner is imported
 
 // Import parsing libraries dynamically or assume they are available via global scope due to importmap
 import { read, utils, writeFile } from 'xlsx';
@@ -114,6 +115,12 @@ const ALL_COLUMNS = ['invoiceNumber', 'invoiceDate', 'vendorName', 'customerName
 type ColumnKey = typeof ALL_COLUMNS[number];
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, invoices, setInvoices, currency, lang }) => {
+  // Safety check: Ensure invoices is an array
+  if (!invoices) {
+      console.warn("DashboardScreen received undefined invoices prop. Defaulting to empty array.");
+      invoices = [];
+  }
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState('');
   const [newlyExtractedInvoice, setNewlyExtractedInvoice] = useState<Invoice | null>(null);
@@ -168,20 +175,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       const fileType = file.type;
       const fileName = file.name.toLowerCase();
 
-      // Determine processing strategy based on file type
       if (fileType === 'application/pdf' || fileType.startsWith('image/')) {
-          // Standard Image/PDF processing (Vision)
           const base64String = await fileToBase64(file);
           const pureBase64 = base64String.split(',')[1];
           extractedData = await geminiService.extractInvoiceDataFromFile(pureBase64, file.type);
       } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv') || fileType.includes('spreadsheet') || fileType.includes('excel')) {
-          // Excel processing (Client-side parse -> Text)
           const textData = await readExcelFile(file);
           extractedData = await geminiService.extractInvoiceDataFromText(textData);
-          // Attach minimal file info since we can't easily view binary excel in the modal without more work
           extractedData.sourceFileMimeType = fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       } else if (fileName.endsWith('.docx') || fileType.includes('wordprocessing')) {
-          // Word processing (Client-side parse -> Text)
           const textData = await readWordFile(file);
           extractedData = await geminiService.extractInvoiceDataFromText(textData);
           extractedData.sourceFileMimeType = fileType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -191,20 +193,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       
       setNewlyExtractedInvoice({
         ...extractedData,
-        // For non-image/pdf files, we assume we processed text, so we might not have a displayable base64
-        // But we try to attach one if possible for saving, or handle viewing gracefully later.
         sourceFileBase64: (await fileToBase64(file)).split(',')[1],
         sourceFileMimeType: file.type,
       });
 
     } catch (error: any) {
-      // Use the specific error message from the backend if available, otherwise use the translation
       const errorMessage = error.message || translations.extractionError;
       setProcessingError(errorMessage);
       console.error(error);
     } finally {
       setIsProcessing(false);
-      // Reset all inputs
       if(docInputRef.current) docInputRef.current.value = "";
       if(imgInputRef.current) imgInputRef.current.value = "";
       if(scannerInputRef.current) scannerInputRef.current.value = "";
@@ -266,14 +264,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       setCameraError('');
       setCapturedImage(null);
       setIsCameraOpen(true);
-      // Disable scrolling on body when camera is open
       document.body.style.overflow = 'hidden';
   };
 
   const handleCloseCamera = () => {
       setIsCameraOpen(false);
       setCapturedImage(null);
-      // Re-enable scrolling
       document.body.style.overflow = '';
   };
 
@@ -281,11 +277,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      
-      // Set canvas dimensions to match video stream
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -307,7 +300,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         });
     }
   };
-  // --- End Camera Logic ---
 
   const handleSaveInvoice = async () => {
     if (!newlyExtractedInvoice) return;
@@ -351,13 +343,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     try {
         await dbService.deleteMultipleInvoicesForUser(user.token, Array.from(selectedInvoiceIds));
         setInvoices(prev => prev.filter(inv => !inv.id || !selectedInvoiceIds.has(inv.id)));
-        setSelectedInvoiceIds(new Set()); // Clear selection
+        setSelectedInvoiceIds(new Set()); 
     } catch (error) {
         console.error("Failed to delete selected invoices:", error);
     } finally {
         setIsDeleteSelectedConfirmOpen(false);
     }
-};
+  };
   
   const handleTogglePaymentStatus = async (invoiceId: string) => {
     const originalInvoices = [...invoices];
@@ -372,7 +364,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       await dbService.updateInvoicePaymentStatus(user.token, invoiceId, newStatus);
     } catch (error) {
       console.error("Failed to update payment status:", error);
-      setInvoices(originalInvoices); // Revert on failure
+      setInvoices(originalInvoices); 
     }
   };
 
@@ -393,7 +385,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             invoice.customerName.toLowerCase().includes(lowerSearchTerm) ||
             invoice.items.some(item => item.description.toLowerCase().includes(lowerSearchTerm));
 
-        // New Item Filter Logic: Check if any item description includes the item search term
         const matchesItemFilter = !lowerItemSearchTerm || invoice.items.some(item => item.description.toLowerCase().includes(lowerItemSearchTerm));
 
         const invoiceDate = new Date(invoice.invoiceDate);
@@ -427,7 +418,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   };
   
   const handleExportToExcel = () => {
-      // 1. Format Data
       const dataToExport = filteredInvoices.map(inv => ({
           [translations.invoiceNumber]: inv.invoiceNumber,
           [translations.vendorName]: inv.vendorName,
@@ -439,18 +429,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
           [translations.uploader]: `${inv.uploaderEmail} ${inv.uploaderCompany ? `(${inv.uploaderCompany})` : ''}`
       }));
 
-      // 2. Create Sheet
       const ws = utils.json_to_sheet(dataToExport);
-      
-      // 3. Auto-width columns (simple estimation)
       const wscols = Object.keys(dataToExport[0] || {}).map(() => ({ wch: 25 }));
       ws['!cols'] = wscols;
-
-      // 4. Create Workbook
       const wb = utils.book_new();
       utils.book_append_sheet(wb, ws, "Invoices");
-
-      // 5. Download
       writeFile(wb, `invoices_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
@@ -459,7 +442,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       return new Intl.NumberFormat(locale, { currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   }, [currency, lang]);
 
-  // --- Statistics Calculations ---
   const totalAmount = useMemo(() => invoices.reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
   const unpaidAmount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'unpaid').reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
 
@@ -488,7 +470,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
       inv.items.forEach(item => {
          const name = item.description.trim();
          if(!name) return;
-         // Based on Quantity
          itemMap.set(name, (itemMap.get(name) || 0) + item.quantity);
       });
     });
@@ -500,7 +481,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         maxName = key;
       }
     });
-    // Truncate if too long
     return maxName.length > 20 ? maxName.substring(0, 18) + '..' : maxName;
   }, [invoices]);
 
@@ -512,35 +492,30 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         
         {/* Updated Summary Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {/* 1. Total Invoices */}
             <SummaryCard 
                 title={translations.totalInvoices} 
                 value={invoices.length} 
                 gradient="bg-gradient-to-br from-slate-600 to-slate-800" 
                 icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} 
             />
-            {/* 2. Grand Total */}
             <SummaryCard 
                 title={translations.grandTotal} 
                 value={formatCurrency(totalAmount)} 
                 gradient="bg-gradient-to-br from-indigo-500 to-blue-600" 
                 icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0a9 9 0 0118 0m-9 7.5h1.5m-1.5 0h.375m-1.125 0h.375m-1.125 0h.375M9 12v9.75M15 12v9.75M21 12v9.75M2.25 6h19.5" /></svg>} 
             />
-             {/* 3. Total Unpaid (Value) */}
              <SummaryCard 
                 title={translations.totalUnpaidAmount} 
                 value={formatCurrency(unpaidAmount)} 
                 gradient="bg-gradient-to-br from-amber-500 to-orange-600" 
                 icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>} 
             />
-             {/* 4. Top Vendor */}
              <SummaryCard 
                 title={translations.topVendorStat} 
                 value={topVendor} 
                 gradient="bg-gradient-to-br from-fuchsia-600 to-purple-700" 
                 icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72l1.189-1.19A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>} 
             />
-            {/* 5. Top Item */}
              <SummaryCard 
                 title={translations.topItemStat} 
                 value={topItem} 
@@ -558,49 +533,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <ProcessingLoader translations={translations} />
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                     {/* 1. Upload Document */}
                      <UploadOptionCard
                         onClick={() => docInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                         title={translations.uploadDocument}
                         subtitle={translations.docSubtitle}
                     />
-
-                     {/* 2. Upload Image */}
                      <UploadOptionCard
                         onClick={() => imgInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
                         title={translations.uploadImage}
                         subtitle={translations.imgSubtitle}
                     />
-                    
-                     {/* 3. From Scanner */}
                      <UploadOptionCard
                         onClick={() => scannerInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>}
                         title={translations.fromScanner}
                         subtitle={translations.chooseFile}
                     />
-
-                    {/* Inputs */}
-                    <input
-                        ref={docInputRef} type="file" onChange={handleFileChange}
-                        accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        className="hidden"
-                    />
-                     <input
-                        ref={imgInputRef} type="file" onChange={handleFileChange}
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                    />
-                     <input
-                        ref={scannerInputRef} type="file" onChange={handleFileChange}
-                        accept="image/*,application/pdf"
-                        capture="environment"
-                        className="hidden"
-                    />
+                    
+                    <input ref={docInputRef} type="file" onChange={handleFileChange} accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" />
+                    <input ref={imgInputRef} type="file" onChange={handleFileChange} accept="image/jpeg,image/png,image/webp" className="hidden" />
+                    <input ref={scannerInputRef} type="file" onChange={handleFileChange} accept="image/*,application/pdf" capture="environment" className="hidden" />
                      
-                     {/* 4. Camera */}
                      <UploadOptionCard
                         onClick={handleOpenCamera}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
@@ -608,7 +563,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                         subtitle={translations.capture}
                     />
                     
-                    {/* 5. Manual - Span 2 columns on mobile to look centered/better */}
                     <UploadOptionCard
                         onClick={() => setIsManualEntryOpen(true)}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>}
@@ -621,22 +575,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {processingError && <p className="mt-4 text-sm text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{processingError}</p>}
         </section>
 
-        {/* Camera Overlay Portal - Renders outside of Dashboard/App stacking context */}
+        {/* Camera Overlay Portal */}
         {isCameraOpen && createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-lg mx-auto bg-black flex flex-col">
                     <video ref={videoRef} autoPlay playsInline className={`w-full flex-grow object-cover ${capturedImage ? 'hidden' : 'block'}`}></video>
                     {capturedImage && <img src={capturedImage} alt="Captured" className="w-full flex-grow object-contain bg-black" />}
                     <canvas ref={canvasRef} className="hidden"></canvas>
-                    
-                    {/* Top Bar */}
                     <div className="absolute top-0 left-0 right-0 p-6 flex justify-end z-10 bg-gradient-to-b from-black/60 to-transparent">
                         <button onClick={handleCloseCamera} className="text-white bg-black/30 hover:bg-black/50 rounded-full p-2 backdrop-blur-md border border-white/10">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
-
-                    {/* Bottom Controls */}
                     <div className="absolute bottom-0 left-0 right-0 p-8 pb-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-center items-center gap-8 z-10">
                         {capturedImage ? (
                             <>
@@ -644,11 +594,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                                 <button onClick={handleUsePhoto} className="px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-500 rounded-full font-medium shadow-lg shadow-indigo-500/30">{translations.usePhoto}</button>
                             </>
                         ) : (
-                            <button 
-                                onClick={handleCapture} 
-                                className="w-20 h-20 rounded-full bg-white border-[6px] border-slate-300/50 shadow-[0_0_20px_rgba(255,255,255,0.4)] active:scale-95 transition-transform" 
-                                aria-label={translations.capture}
-                            ></button>
+                            <button onClick={handleCapture} className="w-20 h-20 rounded-full bg-white border-[6px] border-slate-300/50 shadow-[0_0_20px_rgba(255,255,255,0.4)] active:scale-95 transition-transform" aria-label={translations.capture}></button>
                         )}
                     </div>
                     {cameraError && <p className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center text-sm text-red-500 bg-black/70 px-4 py-2 rounded-lg backdrop-blur-md z-20 border border-red-500/30">{cameraError}</p>}
@@ -694,34 +640,24 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                 <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
                 <div className="flex flex-wrap items-center gap-4">
-                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="text" placeholder={translations.filterItem} value={itemSearchTerm} onChange={e => setItemSearchTerm(e.target.value)}
-                        className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="text" placeholder={translations.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="text" placeholder={translations.filterItem} value={itemSearchTerm} onChange={e => setItemSearchTerm(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:w-auto px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <StatusPillFilter value={statusFilter} onChange={setStatusFilter} translations={translations} lang={lang} />
                     
                      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
-                        <button 
-                            onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`}
-                            title={translations.listView}
-                        >
+                        <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`} title={translations.listView}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
                         </button>
-                        <button 
-                            onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`}
-                            title={translations.gridView}
-                        >
+                        <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-slate-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`} title={translations.gridView}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                         </button>
                     </div>
 
                     <div className="relative" ref={colsDropdownRef}>
                         <button onClick={() => setIsColsDropdownOpen(prev => !prev)} className="px-4 py-2 flex items-center gap-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-slate-300 dark:border-slate-700">
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 00 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>
                             {translations.columns}
                         </button>
                         {isColsDropdownOpen && (
@@ -750,10 +686,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                     <span className="font-semibold text-indigo-700 dark:text-indigo-300">
                         {translations.countSelected.replace('{count}', selectedInvoiceIds.size.toString())}
                     </span>
-                    <button 
-                        onClick={() => setIsDeleteSelectedConfirmOpen(true)}
-                        className="px-4 py-2 flex items-center gap-2 text-sm font-semibold text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 rounded-lg"
-                    >
+                    <button onClick={() => setIsDeleteSelectedConfirmOpen(true)} className="px-4 py-2 flex items-center gap-2 text-sm font-semibold text-red-600 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                         {translations.deleteSelected}
                     </button>
@@ -782,7 +715,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             )}
         </section>
 
-        {/* Smart Analysis Section - Moved to Bottom */}
         {invoices.length > 0 && (
              <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
         )}

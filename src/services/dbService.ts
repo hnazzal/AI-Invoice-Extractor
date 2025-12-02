@@ -95,9 +95,10 @@ export const loginUser = async (email: string, password: string): Promise<User> 
 
 export const getAllProfiles = async (token: string): Promise<UserProfile[]> => {
     // Fetch profiles. RLS should allow admins to see all.
-    return apiFetch('/rest/v1/profiles?select=*', {
+    const data = await apiFetch('/rest/v1/profiles?select=*', {
         headers: { 'Authorization': `Bearer ${token}` }
     });
+    return Array.isArray(data) ? data : [];
 };
 
 // --- Invoice Management ---
@@ -128,26 +129,29 @@ const normalizeDate = (dateString: string): string => {
 
 
 const mapDbItemToAppItem = (dbItem: any): InvoiceItem => ({
-  description: dbItem.description,
-  quantity: dbItem.quantity,
-  unitPrice: dbItem.unit_price,
-  total: dbItem.total,
+  description: dbItem?.description || '',
+  quantity: dbItem?.quantity || 0,
+  unitPrice: dbItem?.unit_price || 0,
+  total: dbItem?.total || 0,
 });
 
-const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
-  id: dbInvoice.id,
-  userId: dbInvoice.user_id, // Map the database user_id to frontend userId
-  invoiceNumber: dbInvoice.invoice_number,
-  vendorName: dbInvoice.vendor_name,
-  customerName: dbInvoice.customer_name,
-  invoiceDate: dbInvoice.invoice_date,
-  totalAmount: dbInvoice.total_amount,
-  paymentStatus: dbInvoice.status || 'unpaid',
-  items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
-  sourceFileBase64: dbInvoice.file_base_64,
-  sourceFileMimeType: dbInvoice.file_mime_type,
-  processingCost: dbInvoice.processing_cost || 0,
-});
+const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => {
+    if (!dbInvoice) throw new Error("Invalid invoice record");
+    return {
+        id: dbInvoice.id,
+        userId: dbInvoice.user_id, // Map the database user_id to frontend userId
+        invoiceNumber: dbInvoice.invoice_number || '',
+        vendorName: dbInvoice.vendor_name || '',
+        customerName: dbInvoice.customer_name || '',
+        invoiceDate: dbInvoice.invoice_date || '',
+        totalAmount: dbInvoice.total_amount || 0,
+        paymentStatus: dbInvoice.status || 'unpaid',
+        items: Array.isArray(dbInvoice.invoice_items) ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
+        sourceFileBase64: dbInvoice.file_base_64,
+        sourceFileMimeType: dbInvoice.file_mime_type,
+        processingCost: dbInvoice.processing_cost || 0,
+    };
+};
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
@@ -158,8 +162,22 @@ export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
             'Authorization': `Bearer ${token}`,
         }
     });
+    
+    if (!Array.isArray(data)) {
+        console.warn("getInvoicesForUser received non-array data:", data);
+        return [];
+    }
+
     // Map the database response to the application's Invoice type
-    return data.map(mapDbInvoiceToAppInvoice);
+    // Filter out nulls if mapping fails for specific records
+    return data.map(dbInv => {
+        try {
+            return mapDbInvoiceToAppInvoice(dbInv);
+        } catch (e) {
+            console.warn("Skipping corrupt invoice record", e);
+            return null;
+        }
+    }).filter((inv): inv is Invoice => inv !== null);
 };
 
 export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<Invoice> => {
