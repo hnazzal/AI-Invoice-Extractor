@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Handler, HandlerEvent } from "@netlify/functions";
 
@@ -21,6 +22,7 @@ interface Invoice {
   paymentStatus: 'paid' | 'unpaid';
   sourceFileBase64?: string;
   sourceFileMimeType?: string;
+  processingCost?: number;
 }
 
 const API_KEY = process.env.VITE_API_KEY;
@@ -140,6 +142,19 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
     if (!responseText) {
         throw new Error("The AI model could not process this invoice. It might be flagged by safety filters or contains no readable data.");
     }
+    
+    // Calculate Estimated Cost
+    // Based on public pricing for Gemini 1.5 Flash (often similar to 2.5 Flash Preview pricing tiers)
+    // Input: ~$0.075 per 1 million tokens
+    // Output: ~$0.30 per 1 million tokens
+    let processingCost = 0;
+    if (response.usageMetadata) {
+        const inputTokens = response.usageMetadata.promptTokenCount || 0;
+        const outputTokens = response.usageMetadata.candidatesTokenCount || 0;
+        const inputCost = (inputTokens / 1000000) * 0.075;
+        const outputCost = (outputTokens / 1000000) * 0.30;
+        processingCost = inputCost + outputCost;
+    }
 
     const cleanedText = cleanJsonString(responseText);
     let parsedJson;
@@ -166,6 +181,7 @@ const handleExtract = async (ai: GoogleGenAI, body: any) => {
         paymentStatus: 'unpaid', 
         sourceFileBase64: fileBase64 || '', 
         sourceFileMimeType: mimeType || 'text/plain',
+        processingCost: processingCost,
     };
 
     if (!sanitizedData.invoiceNumber && !sanitizedData.vendorName && sanitizedData.items.length === 0) {

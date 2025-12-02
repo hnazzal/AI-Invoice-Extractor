@@ -92,6 +92,10 @@ export const translations: AppTranslations = {
     uploadBoxTitle: 'Add a New Purchase Invoice',
     uploadBoxSubtitle: 'Supports PDF, Images (JPG/PNG), Excel, and Word.',
     chooseFile: 'Choose Files',
+    uploadDocument: 'Upload Document',
+    docSubtitle: 'PDF, Word, Excel',
+    uploadImage: 'Upload Image',
+    imgSubtitle: 'JPG, PNG',
     uploadPDF: 'Upload File',
     scanWithCamera: 'Scan with Camera',
     fromScanner: 'From Scanner',
@@ -104,6 +108,10 @@ export const translations: AppTranslations = {
     maxAmount: 'Max Amount',
     listView: 'List View',
     gridView: 'Grid View',
+    processingCost: 'Processing Cost',
+    totalUnpaidAmount: 'Unpaid Amount',
+    topVendorStat: 'Top Vendor',
+    topItemStat: 'Top Item',
     
     // Camera
     capture: 'Capture',
@@ -259,6 +267,10 @@ export const translations: AppTranslations = {
     uploadBoxTitle: 'إضافة فاتورة مشتريات جديدة',
     uploadBoxSubtitle: 'يدعم PDF، الصور، Excel، و Word.',
     chooseFile: 'اختر ملفات',
+    uploadDocument: 'رفع مستند',
+    docSubtitle: 'PDF, Word, Excel',
+    uploadImage: 'رفع صورة',
+    imgSubtitle: 'JPG, PNG',
     uploadPDF: 'رفع ملف',
     scanWithCamera: 'مسح بالكاميرا',
     fromScanner: 'من الماسح الضوئي',
@@ -271,6 +283,10 @@ export const translations: AppTranslations = {
     maxAmount: 'أعلى مبلغ',
     listView: 'عرض القائمة',
     gridView: 'عرض الشبكة',
+    processingCost: 'تكلفة المعالجة',
+    totalUnpaidAmount: 'قيمة غير المدفوع',
+    topVendorStat: 'أكثر مورد',
+    topItemStat: 'أكثر صنف',
 
     // Camera
     capture: 'التقاط',

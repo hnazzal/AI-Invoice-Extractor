@@ -31,6 +31,7 @@ export interface Invoice {
   paymentStatus: 'paid' | 'unpaid';
   sourceFileBase64?: string;
   sourceFileMimeType?: string;
+  processingCost?: number; // Cost of the AI extraction in USD
 }
 
 export interface Anomaly {

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { User, Invoice, Translations, Currency, Language } from '../../types';
@@ -14,7 +15,7 @@ import Chatbot from '../shared/Chatbot';
 import SmartAnalysis from '../shared/SmartAnalysis';
 
 // Import parsing libraries dynamically or assume they are available via global scope due to importmap
-import { read, utils } from 'xlsx';
+import { read, utils, writeFile } from 'xlsx';
 import mammoth from 'mammoth';
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -43,12 +44,12 @@ const readWordFile = async (file: File): Promise<string> => {
     return result.value;
 };
 
-const SummaryCard = ({ title, value, icon, gradient }) => (
-  <div className={`relative p-6 rounded-2xl overflow-hidden text-white transition-transform transform hover:scale-105 duration-300 shadow-lg ${gradient}`}>
-    <div className="absolute -top-4 -right-4 w-24 h-24 text-white/10">{icon}</div>
+const SummaryCard = ({ title, value, icon, gradient, titleColor = "text-white/90" }) => (
+  <div className={`relative p-5 rounded-2xl overflow-hidden text-white transition-transform transform hover:scale-105 duration-300 shadow-lg ${gradient}`}>
+    <div className="absolute -top-4 -right-4 w-20 h-20 text-white/10">{icon}</div>
     <div className="relative z-10">
-      <p className="text-sm font-medium uppercase opacity-80">{title}</p>
-      <p className="text-4xl font-bold mt-2">{value}</p>
+      <p className={`text-xs font-semibold uppercase tracking-wider ${titleColor}`}>{title}</p>
+      <p className="text-2xl lg:text-3xl font-bold mt-1 truncate" title={String(value)}>{value}</p>
     </div>
   </div>
 );
@@ -417,15 +418,84 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     setStatusFilter('all');
     setSelectedInvoiceIds(new Set());
   };
+  
+  const handleExportToExcel = () => {
+      // 1. Format Data
+      const dataToExport = filteredInvoices.map(inv => ({
+          [translations.invoiceNumber]: inv.invoiceNumber,
+          [translations.vendorName]: inv.vendorName,
+          [translations.customerName]: inv.customerName,
+          [translations.invoiceDate]: inv.invoiceDate,
+          [translations.totalAmount]: inv.totalAmount,
+          [translations.paymentStatus]: translations[inv.paymentStatus] || inv.paymentStatus,
+          [translations.items]: inv.items.map(i => `${i.description} (${i.quantity})`).join(', '),
+          [translations.uploader]: inv.uploaderEmail
+      }));
+
+      // 2. Create Sheet
+      const ws = utils.json_to_sheet(dataToExport);
+      
+      // 3. Auto-width columns (simple estimation)
+      const wscols = Object.keys(dataToExport[0] || {}).map(() => ({ wch: 25 }));
+      ws['!cols'] = wscols;
+
+      // 4. Create Workbook
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Invoices");
+
+      // 5. Download
+      writeFile(wb, `invoices_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   const formatCurrency = useCallback((amount: number) => {
       const locale = lang === 'ar' ? 'ar-JO' : 'en-US';
       return new Intl.NumberFormat(locale, { currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   }, [currency, lang]);
 
+  // --- Statistics Calculations ---
   const totalAmount = useMemo(() => invoices.reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
-  const paidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'paid').length, [invoices]);
-  const unpaidCount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'unpaid').length, [invoices]);
+  const unpaidAmount = useMemo(() => invoices.filter(inv => inv.paymentStatus === 'unpaid').reduce((sum, inv) => sum + inv.totalAmount, 0), [invoices]);
+
+  const topVendor = useMemo(() => {
+    if (invoices.length === 0) return '-';
+    const vendorMap = new Map<string, number>();
+    invoices.forEach(inv => {
+      const name = inv.vendorName || 'Unknown';
+      vendorMap.set(name, (vendorMap.get(name) || 0) + inv.totalAmount);
+    });
+    let maxName = '-';
+    let maxVal = 0;
+    vendorMap.forEach((val, key) => {
+      if (val > maxVal) {
+        maxVal = val;
+        maxName = key;
+      }
+    });
+    return maxName;
+  }, [invoices]);
+
+  const topItem = useMemo(() => {
+    if (invoices.length === 0) return '-';
+    const itemMap = new Map<string, number>();
+    invoices.forEach(inv => {
+      inv.items.forEach(item => {
+         const name = item.description.trim();
+         if(!name) return;
+         // Based on Quantity
+         itemMap.set(name, (itemMap.get(name) || 0) + item.quantity);
+      });
+    });
+    let maxName = '-';
+    let maxVal = 0;
+    itemMap.forEach((val, key) => {
+      if (val > maxVal) {
+        maxVal = val;
+        maxName = key;
+      }
+    });
+    // Truncate if too long
+    return maxName.length > 20 ? maxName.substring(0, 18) + '..' : maxName;
+  }, [invoices]);
 
   return (
     <div className="space-y-8">
@@ -433,11 +503,43 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
              <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{translations.dashboardTitle}</h1>
         </div>
         
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <SummaryCard title={translations.totalInvoices} value={invoices.length} gradient="bg-gradient-to-br from-indigo-500 to-blue-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0A2.25 2.25 0 015.625 7.5h12.75c1.13 0 2.063.784 2.227 1.883" /></svg>} />
-            <SummaryCard title={translations.grandTotal} value={formatCurrency(totalAmount)} gradient="bg-gradient-to-br from-sky-500 to-cyan-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0a9 9 0 0118 0m-9 7.5h1.5m-1.5 0h.375m-1.125 0h.375m-1.125 0h.375M9 12v9.75M15 12v9.75M21 12v9.75M2.25 6h19.5" /></svg>} />
-            <SummaryCard title={translations.paidInvoices} value={paidCount} gradient="bg-gradient-to-br from-green-500 to-emerald-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-            <SummaryCard title={translations.unpaidInvoices} value={unpaidCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" /></svg>} />
+        {/* Updated Summary Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {/* 1. Total Invoices */}
+            <SummaryCard 
+                title={translations.totalInvoices} 
+                value={invoices.length} 
+                gradient="bg-gradient-to-br from-slate-600 to-slate-800" 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} 
+            />
+            {/* 2. Grand Total */}
+            <SummaryCard 
+                title={translations.grandTotal} 
+                value={formatCurrency(totalAmount)} 
+                gradient="bg-gradient-to-br from-indigo-500 to-blue-600" 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0a9 9 0 0118 0m-9 7.5h1.5m-1.5 0h.375m-1.125 0h.375m-1.125 0h.375M9 12v9.75M15 12v9.75M21 12v9.75M2.25 6h19.5" /></svg>} 
+            />
+             {/* 3. Total Unpaid (Value) */}
+             <SummaryCard 
+                title={translations.totalUnpaidAmount} 
+                value={formatCurrency(unpaidAmount)} 
+                gradient="bg-gradient-to-br from-amber-500 to-orange-600" 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>} 
+            />
+             {/* 4. Top Vendor */}
+             <SummaryCard 
+                title={translations.topVendorStat} 
+                value={topVendor} 
+                gradient="bg-gradient-to-br from-fuchsia-600 to-purple-700" 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72l1.189-1.19A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>} 
+            />
+            {/* 5. Top Item */}
+             <SummaryCard 
+                title={translations.topItemStat} 
+                value={topItem} 
+                gradient="bg-gradient-to-br from-teal-500 to-emerald-600" 
+                icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>} 
+            />
         </section>
 
         {/* Upload/Add Invoice Section */}
@@ -453,16 +555,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                      <UploadOptionCard
                         onClick={() => docInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
-                        title={translations.uploadPDF}
-                        subtitle="PDF, Word, Excel"
+                        title={translations.uploadDocument}
+                        subtitle={translations.docSubtitle}
                     />
 
                      {/* 2. Upload Image */}
                      <UploadOptionCard
                         onClick={() => imgInputRef.current?.click()}
                         icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
-                        title={translations.uploadImageOrPDF.replace('PDF, ', '').split(',')[0]} // "Upload Image" roughly
-                        subtitle="JPG, PNG"
+                        title={translations.uploadImage}
+                        subtitle={translations.imgSubtitle}
                     />
                     
                      {/* 3. From Scanner */}
@@ -512,11 +614,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             {processingError && <p className="mt-4 text-sm text-red-500 font-medium bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{processingError}</p>}
         </section>
 
-        {/* Smart Analysis Section */}
-        {invoices.length > 0 && (
-             <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
-        )}
-
         {/* Camera Overlay Portal - Renders outside of Dashboard/App stacking context */}
         {isCameraOpen && createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
@@ -556,12 +653,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
         {newlyExtractedInvoice && !isProcessing && (
             <section className="p-6 bg-green-50/50 dark:bg-green-900/20 rounded-2xl shadow-lg border border-green-200 dark:border-green-700/50 opacity-0 animate-fade-in-up">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoices}</h2>
+                     <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-semibold text-green-800 dark:text-green-300">{translations.newlyExtractedInvoices}</h2>
+                        {newlyExtractedInvoice.processingCost !== undefined && (
+                             <span className="hidden sm:inline-block text-xs font-mono bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-700" title="Estimated AI Processing Cost">
+                                {translations.processingCost}: ${newlyExtractedInvoice.processingCost.toFixed(6)}
+                             </span>
+                         )}
+                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => setNewlyExtractedInvoice(null)} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.cancel}</button>
                         <button onClick={handleSaveInvoice} className="px-4 py-2 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors">{translations.saveInvoice}</button>
                     </div>
                 </div>
+                {newlyExtractedInvoice.processingCost !== undefined && (
+                     <div className="sm:hidden mb-4">
+                         <span className="text-xs font-mono bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
+                            {translations.processingCost}: ${newlyExtractedInvoice.processingCost.toFixed(6)}
+                         </span>
+                     </div>
+                 )}
                 <InvoiceTable 
                     invoices={[newlyExtractedInvoice]} translations={translations} currency={currency} language={lang}
                     onInvoiceDoubleClick={() => {}} onDeleteClick={() => {}} onViewClick={handleViewInvoiceFile} onTogglePaymentStatus={() => {}}
@@ -571,6 +682,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
             </section>
         )}
 
+        {/* Saved Invoices Section */}
         <section className="p-6 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                 <h2 className="text-xl font-semibold">{translations.savedInvoices}</h2>
@@ -614,6 +726,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                             </div>
                         )}
                     </div>
+                    
+                    <button onClick={handleExportToExcel} className="px-4 py-2 flex items-center gap-2 rounded-lg text-green-700 dark:text-green-400 font-medium hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors border border-green-200 dark:border-green-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        {translations.exportToExcel}
+                    </button>
+
                     <button onClick={handleClearFilters} className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">{translations.clearFilters}</button>
                 </div>
             </div>
@@ -654,6 +772,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
                 <p className="text-center text-slate-500 dark:text-slate-400 py-8">{translations.noInvoices}</p>
             )}
         </section>
+
+        {/* Smart Analysis Section - Moved to Bottom */}
+        {invoices.length > 0 && (
+             <SmartAnalysis invoices={invoices} translations={translations} language={lang} />
+        )}
 
         <Chatbot invoices={invoices} translations={translations} language={lang} />
 
