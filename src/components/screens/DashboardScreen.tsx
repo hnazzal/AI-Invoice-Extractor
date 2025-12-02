@@ -314,7 +314,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
     
     try {
         const savedInvoice = await dbService.saveInvoiceForUser(user, newlyExtractedInvoice);
-        setInvoices(prevInvoices => [{...savedInvoice, uploaderEmail: user.email }, ...prevInvoices]);
+        setInvoices(prevInvoices => [{...savedInvoice, uploaderEmail: user.email, uploaderCompany: user.companyName }, ...prevInvoices]);
         setNewlyExtractedInvoice(null);
     } catch (error) {
         console.error("Failed to save invoice:", error);
@@ -324,7 +324,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
   const handleSaveManualInvoice = async (invoiceToSave: Invoice) => {
     try {
         const savedInvoice = await dbService.saveInvoiceForUser(user, invoiceToSave);
-        setInvoices(prev => [{...savedInvoice, uploaderEmail: user.email }, ...prev]);
+        setInvoices(prev => [{...savedInvoice, uploaderEmail: user.email, uploaderCompany: user.companyName }, ...prev]);
         setIsManualEntryOpen(false);
     } catch (error: any) {
         console.error("Failed to save manual invoice:", error);
@@ -436,7 +436,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, translations, i
           [translations.totalAmount]: inv.totalAmount,
           [translations.paymentStatus]: translations[inv.paymentStatus] || inv.paymentStatus,
           [translations.items]: inv.items.map(i => `${i.description} (${i.quantity})`).join(', '),
-          [translations.uploader]: inv.uploaderEmail
+          [translations.uploader]: `${inv.uploaderEmail} ${inv.uploaderCompany ? `(${inv.uploaderCompany})` : ''}`
       }));
 
       // 2. Create Sheet

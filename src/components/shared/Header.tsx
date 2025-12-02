@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { User, Language, Translations, Theme, Currency } from '../../types';
 import ToggleSwitch from './ToggleSwitch';
@@ -13,9 +14,11 @@ interface HeaderProps {
   currency: Currency;
   setCurrency: (currency: Currency) => void;
   translations: Translations;
+  currentScreen?: 'dashboard' | 'admin';
+  onNavigate?: (screen: 'dashboard' | 'admin') => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, setTheme, currency, setCurrency, translations }) => {
+const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, setTheme, currency, setCurrency, translations, currentScreen, onNavigate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const languageOptions = [
@@ -29,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
   ] as const;
   
   const AppLogo = () => (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate && onNavigate('dashboard')}>
         <div className="w-8 h-8 bg-white/50 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center ring-1 ring-inset ring-white/30 dark:ring-slate-700">
             <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -68,6 +71,20 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4">
+             {/* Admin Button */}
+             {user.role === 'admin' && onNavigate && (
+                <button
+                    onClick={() => onNavigate(currentScreen === 'admin' ? 'dashboard' : 'admin')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        currentScreen === 'admin' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-white/50 text-indigo-700 dark:text-indigo-300 dark:bg-slate-800/50 hover:bg-white/80'
+                    }`}
+                >
+                    {currentScreen === 'admin' ? translations.backToInvoices : translations.adminPanel}
+                </button>
+            )}
+
             <ToggleSwitch options={languageOptions} value={lang} onChange={(value) => setLang(value as Language)} />
             <ToggleSwitch options={currencyOptions} value={currency} onChange={(value) => setCurrency(value as Currency)} />
 
@@ -116,6 +133,19 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, lang, setLang, theme, s
         {isMobileMenuOpen && (
             <div className="md:hidden absolute top-full left-0 right-0 mt-2 mx-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-4 animate-fade-in-up z-50">
                  <div className="flex flex-col gap-3">
+                     {/* Admin Button Mobile */}
+                    {user.role === 'admin' && onNavigate && (
+                        <button
+                            onClick={() => {
+                                onNavigate(currentScreen === 'admin' ? 'dashboard' : 'admin');
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className="w-full py-2 rounded-lg font-medium bg-indigo-600 text-white"
+                        >
+                            {currentScreen === 'admin' ? translations.backToInvoices : translations.adminPanel}
+                        </button>
+                    )}
+                    
                     <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Language</span>
                         <ToggleSwitch options={languageOptions} value={lang} onChange={(value) => setLang(value as Language)} />

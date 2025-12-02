@@ -1,5 +1,6 @@
 
-import type { User, Invoice, InvoiceItem } from '../types';
+
+import type { User, Invoice, InvoiceItem, UserProfile } from '../types';
 import { config, isDbConfigured } from '../config';
 
 // Export a flag to check if the service is properly configured.
@@ -62,12 +63,41 @@ export const loginUser = async (email: string, password: string): Promise<User> 
         body: JSON.stringify({ email, password }),
     });
 
-    return {
+    const user: User = {
         id: response.user.id,
         email: response.user.email,
         token: response.access_token,
         companyName: response.user.user_metadata?.company_name, // Retrieve company name
     };
+
+    // Fetch Role from profiles table
+    try {
+        const profileData = await apiFetch(`/rest/v1/profiles?id=eq.${user.id}&select=role`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        if (profileData && profileData.length > 0) {
+            user.role = profileData[0].role;
+        }
+    } catch (e) {
+        console.warn("Could not fetch user role, defaulting to user");
+        user.role = 'user';
+    }
+
+    return user;
+};
+
+// --- Admin Functions ---
+
+export const getAllProfiles = async (token: string): Promise<UserProfile[]> => {
+    // Fetch profiles. RLS should allow admins to see all.
+    // Also fetch aggregate data: total invoices and total spend per user.
+    // NOTE: Supabase doesn't support easy 'group by' in simple REST API without RPC or Views.
+    // For now, we will just fetch profiles and we might need to fetch invoices to calculate, 
+    // OR we can create a View in SQL.
+    // Let's assume we just list profiles first.
+    return apiFetch('/rest/v1/profiles?select=*', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
 };
 
 // --- Invoice Management ---
@@ -115,12 +145,17 @@ const mapDbInvoiceToAppInvoice = (dbInvoice: any): Invoice => ({
   items: dbInvoice.invoice_items ? dbInvoice.invoice_items.map(mapDbItemToAppItem) : [],
   sourceFileBase64: dbInvoice.file_base_64,
   sourceFileMimeType: dbInvoice.file_mime_type,
+  processingCost: dbInvoice.processing_cost || 0,
+  // If we joined with profiles, we might have uploader info
+  uploaderEmail: dbInvoice.profiles?.email,
+  uploaderCompany: dbInvoice.profiles?.company_name,
 });
 
 
 export const getInvoicesForUser = async (token: string): Promise<Invoice[]> => {
-    // Use Supabase foreign table embedding to get invoices and their items in one call.
-    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*)&order=created_at.desc', {
+    // If Admin, this returns ALL due to RLS.
+    // We join with profiles to get company name and email for the "Uploader" column
+    const data = await apiFetch('/rest/v1/invoices?select=*,invoice_items(*),profiles(email,company_name)&order=created_at.desc', {
         headers: {
             'Authorization': `Bearer ${token}`,
         }
@@ -142,6 +177,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         invoice_date: normalizeDate(invoice.invoiceDate),
         total_amount: invoice.totalAmount,
         status: invoice.paymentStatus || 'unpaid',
+        processing_cost: invoice.processingCost || 0, // Store cost
     };
 
     await apiFetch('/rest/v1/invoices', {
@@ -193,6 +229,7 @@ export const saveInvoiceForUser = async (user: User, invoice: Invoice): Promise<
         ...invoice,
         id: newInvoiceId,
         uploaderEmail: user.email,
+        uploaderCompany: user.companyName,
     };
 };
 

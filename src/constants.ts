@@ -116,6 +116,15 @@ export const translations: AppTranslations = {
     topVendorStat: 'Top Vendor',
     topItemStat: 'Top Item',
     
+    // Admin
+    adminPanel: 'Admin Panel',
+    userManagement: 'User Management',
+    allInvoices: 'All Invoices',
+    role: 'Role',
+    joinedDate: 'Joined Date',
+    totalSpent: 'Total Spent (Invoices)',
+    invoicesCount: 'Invoices Count',
+    
     // Camera
     capture: 'Capture',
     retake: 'Retake',
@@ -149,7 +158,7 @@ export const translations: AppTranslations = {
     total: 'Total',
     addItem: 'Add Item',
     removeItem: 'Remove',
-    uploader: 'Uploader',
+    uploader: 'Uploader/Company',
 
     // Chatbot
     aiAssistant: 'AI Invoice Assistant',
@@ -294,6 +303,15 @@ export const translations: AppTranslations = {
     topVendorStat: 'أكثر مورد',
     topItemStat: 'أكثر صنف',
 
+    // Admin
+    adminPanel: 'لوحة تحكم المدير',
+    userManagement: 'إدارة المستخدمين',
+    allInvoices: 'جميع الفواتير',
+    role: 'الصلاحية',
+    joinedDate: 'تاريخ الانضمام',
+    totalSpent: 'إجمالي المصاريف',
+    invoicesCount: 'عدد الفواتير',
+
     // Camera
     capture: 'التقاط',
     retake: 'إعادة الالتقاط',
@@ -327,7 +345,7 @@ export const translations: AppTranslations = {
     total: 'الإجمالي',
     addItem: 'إضافة بند',
     removeItem: 'حذف',
-    uploader: 'المستخدم',
+    uploader: 'المستخدم/الشركة',
     
     // Chatbot
     aiAssistant: 'مساعد الفواتير الذكي',

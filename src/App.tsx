@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Language, Screen, Invoice, Theme, Currency } from './types';
 import { translations } from './constants';
@@ -6,6 +7,7 @@ import { isDbConfigured, isAiConfigured } from './config';
 import LoginScreen from './components/screens/LoginScreen';
 import SignUpScreen from './components/screens/SignUpScreen';
 import DashboardScreen from './components/screens/DashboardScreen';
+import AdminScreen from './components/screens/AdminScreen'; // Import AdminScreen
 import Header from './components/shared/Header';
 import ConfigurationErrorScreen from './components/screens/ConfigurationErrorScreen';
 
@@ -58,6 +60,7 @@ const App: React.FC = () => {
       const invoicesWithUploader = userInvoices.map(invoice => ({
         ...invoice,
         uploaderEmail: loggedInUser.email,
+        uploaderCompany: loggedInUser.companyName,
       }));
       setInvoices(invoicesWithUploader);
       setUser(loggedInUser);
@@ -75,6 +78,10 @@ const App: React.FC = () => {
     setScreen('login');
     setInvoices([]);
   }, []);
+  
+  const handleNavigate = (targetScreen: 'dashboard' | 'admin') => {
+      setScreen(targetScreen);
+  }
 
   const t = translations[lang];
 
@@ -93,7 +100,15 @@ const App: React.FC = () => {
       case 'signup':
         return <SignUpScreen onSwitchToLogin={() => setScreen('login')} translations={t} />;
       case 'dashboard':
-        return user ? <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto opacity-0 animate-fade-in-up w-full" style={{ animationDelay: '150ms'}}><DashboardScreen user={user} translations={t} invoices={invoices} setInvoices={setInvoices} currency={currency} lang={lang} /></div> : <LoginScreen onLogin={handleLogin} onSwitchToSignUp={() => setScreen('signup')} translations={t} />;
+        return user ? (
+            <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto opacity-0 animate-fade-in-up w-full" style={{ animationDelay: '150ms'}}>
+                <DashboardScreen user={user} translations={t} invoices={invoices} setInvoices={setInvoices} currency={currency} lang={lang} />
+            </div>
+        ) : <LoginScreen onLogin={handleLogin} onSwitchToSignUp={() => setScreen('signup')} translations={t} />;
+      case 'admin':
+         return user && user.role === 'admin' ? (
+             <AdminScreen user={user} translations={t} currency={currency} lang={lang} />
+         ) : <DashboardScreen user={user!} translations={t} invoices={invoices} setInvoices={setInvoices} currency={currency} lang={lang} />;
       default:
         return <LoginScreen onLogin={handleLogin} onSwitchToSignUp={() => setScreen('signup')} translations={t} />;
     }
@@ -110,7 +125,9 @@ const App: React.FC = () => {
         setTheme={setTheme}
         currency={currency}
         setCurrency={setCurrency}
-        translations={t} 
+        translations={t}
+        currentScreen={screen === 'admin' ? 'admin' : 'dashboard'}
+        onNavigate={handleNavigate}
       />
       <main className="flex-grow flex flex-col">
           {renderScreen()}

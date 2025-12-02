@@ -4,13 +4,24 @@ export interface User {
   email: string;
   token: string;
   companyName?: string;
+  role?: 'user' | 'admin';
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'user' | 'admin';
+  company_name: string;
+  created_at: string;
+  total_invoices_count?: number;
+  total_spent?: number;
 }
 
 export type Language = 'en' | 'ar';
 export type Theme = 'light' | 'dark';
 export type Currency = 'USD' | 'JOD';
 
-export type Screen = 'login' | 'signup' | 'dashboard';
+export type Screen = 'login' | 'signup' | 'dashboard' | 'admin';
 
 export interface InvoiceItem {
   description: string;
@@ -29,6 +40,7 @@ export interface Invoice {
   totalAmount: number;
   items: InvoiceItem[];
   uploaderEmail?: string;
+  uploaderCompany?: string; // For admin view
   paymentStatus: 'paid' | 'unpaid';
   sourceFileBase64?: string;
   sourceFileMimeType?: string;

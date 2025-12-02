@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Invoice, Translations, Currency, Language } from '../../types';
 
@@ -13,11 +14,12 @@ interface InvoiceTableProps {
   columnVisibility: Record<string, boolean>;
   selectedInvoiceIds: Set<string>;
   onSelectionChange: (selectedIds: Set<string>) => void;
+  isAdminView?: boolean;
 }
 
 const MIN_COLUMN_WIDTH = 80;
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility, selectedInvoiceIds, onSelectionChange }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, currency, language, onInvoiceDoubleClick, onDeleteClick, onViewClick, onTogglePaymentStatus, columnVisibility, selectedInvoiceIds, onSelectionChange, isAdminView = false }) => {
   
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -69,21 +71,41 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
 
   const canPerformActions = !!onDeleteClick && !!onInvoiceDoubleClick;
 
-  const ALL_COLUMNS_CONFIG = useMemo(() => [
-    { key: 'invoiceNumber', label: translations.invoiceNumber, width: 150, align: 'start' },
-    { key: 'invoiceDate', label: translations.invoiceDate, width: 120, align: 'start' },
-    { key: 'vendorName', label: translations.vendorName, width: 200, align: 'start' },
-    { key: 'customerName', label: translations.customerName, width: 200, align: 'start' },
-    { key: 'paymentStatus', label: translations.paymentStatus, width: 120, align: 'center' },
-    { key: 'items', label: translations.items, width: 80, align: 'center' },
-    { key: 'totalAmount', label: translations.totalAmount, width: 150, align: 'end' },
-    { key: 'uploader', label: translations.uploader, width: 200, align: 'start' },
-    ...(canPerformActions ? [{ key: 'actions', label: translations.actions, width: 120, align: 'end' }] : [])
-  ], [translations, canPerformActions]);
+  const ALL_COLUMNS_CONFIG = useMemo(() => {
+      const cols = [
+        { key: 'invoiceNumber', label: translations.invoiceNumber, width: 120, align: 'start' },
+        { key: 'invoiceDate', label: translations.invoiceDate, width: 110, align: 'start' },
+        { key: 'vendorName', label: translations.vendorName, width: 180, align: 'start' },
+        { key: 'customerName', label: translations.customerName, width: 180, align: 'start' },
+        { key: 'paymentStatus', label: translations.paymentStatus, width: 120, align: 'center' },
+        { key: 'items', label: translations.items, width: 80, align: 'center' },
+        { key: 'totalAmount', label: translations.totalAmount, width: 140, align: 'end' },
+      ];
+
+      // Add Admin specific columns
+      if (isAdminView) {
+          cols.push({ key: 'uploader', label: translations.uploader, width: 200, align: 'start' });
+          cols.push({ key: 'processingCost', label: translations.processingCost, width: 120, align: 'end' });
+      } else {
+          cols.push({ key: 'uploader', label: translations.uploader, width: 200, align: 'start' });
+      }
+
+      if (canPerformActions) {
+          cols.push({ key: 'actions', label: translations.actions, width: 120, align: 'end' });
+      }
+      
+      return cols;
+  }, [translations, canPerformActions, isAdminView]);
 
   const visibleColumns = useMemo(() => {
-    return ALL_COLUMNS_CONFIG.filter(col => columnVisibility[col.key]);
-  }, [ALL_COLUMNS_CONFIG, columnVisibility]);
+    // If admin view, force show extra columns if they are not explicitly disabled in visibility map
+    // (Or assume visibility map handles them if passed correctly from parent)
+    return ALL_COLUMNS_CONFIG.filter(col => {
+        // Special case: admin columns might not be in default columnVisibility map from dashboard
+        if (col.key === 'processingCost' && isAdminView) return true;
+        return columnVisibility[col.key] !== false; 
+    });
+  }, [ALL_COLUMNS_CONFIG, columnVisibility, isAdminView]);
 
   const [columnWidths, setColumnWidths] = useState(() => {
     const initialWidths: { [key: string]: number } = {};
@@ -159,7 +181,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             </span>
         );
       case 'totalAmount': return <span className="font-semibold text-indigo-600 dark:text-indigo-400">{formatCurrency(invoice.totalAmount)}</span>;
-      case 'uploader': return invoice.uploaderEmail;
+      case 'uploader': 
+        return (
+            <div className="flex flex-col">
+                <span className="text-slate-700 dark:text-slate-200">{invoice.uploaderEmail}</span>
+                {invoice.uploaderCompany && <span className="text-xs text-slate-500">{invoice.uploaderCompany}</span>}
+            </div>
+        );
+      case 'processingCost':
+        return invoice.processingCost !== undefined 
+            ? <span className="font-mono text-slate-600 dark:text-slate-400">${invoice.processingCost.toFixed(6)}</span> 
+            : '-';
       case 'actions': return (
         <div className="flex justify-end items-center gap-1">
             {invoice.paymentStatus === 'unpaid' && invoice.id && (
@@ -200,7 +232,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
   }
   
   const numVisible = visibleColumns.length;
-  const actionsColSpan = (canPerformActions && columnVisibility.actions) ? 1 : 0;
+  const actionsColSpan = (canPerformActions && (isAdminView || columnVisibility.actions !== false)) ? 1 : 0;
   const totalColSpan = 2;
   const summaryColSpan = numVisible - totalColSpan - actionsColSpan;
 
@@ -250,7 +282,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, translations, cur
             <tr 
               key={invoice.id || invoice.clientId || invoice.invoiceNumber} 
               onDoubleClick={canPerformActions ? () => onInvoiceDoubleClick(invoice) : undefined}
-              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10 ${selectedInvoiceIds.has(invoice.id!) ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
+              className={`${canPerformActions ? "cursor-pointer" : ""} transition-colors duration-150 hover:bg-white/20 dark:hover:bg-white/10 ${invoice.id && selectedInvoiceIds.has(invoice.id) ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
             >
               {canPerformActions && (
                 <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
