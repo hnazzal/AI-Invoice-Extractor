@@ -6,6 +6,7 @@ import InvoiceTable from '../shared/InvoiceTable';
 import Spinner from '../shared/Spinner';
 import FileViewerModal from '../shared/FileViewerModal';
 import InvoiceDetailModal from '../shared/InvoiceDetailModal';
+import AddUserModal from '../shared/AddUserModal';
 
 interface AdminScreenProps {
   user: User;
@@ -18,6 +19,7 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
   const [activeTab, setActiveTab] = useState<'invoices' | 'users'>('invoices');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   
   // Data State
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
@@ -85,13 +87,15 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
   // Derived stats for Users tab
   const profilesWithStats = useMemo(() => {
       return profiles.map(profile => {
-          // Match invoices by userId (assuming we added userId to Invoice type)
+          // Match invoices by userId
           const userInvoices = allInvoices.filter(inv => inv.userId === profile.id);
-          const totalSpent = userInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+          // Calculate Total AI Processing Cost instead of Total Spent
+          const totalCost = userInvoices.reduce((sum, inv) => sum + (inv.processingCost || 0), 0);
+          
           return {
               ...profile,
               total_invoices_count: userInvoices.length,
-              total_spent: totalSpent
+              total_spent: totalCost // Reusing this field name locally, but it now represents Cost
           };
       });
   }, [profiles, allInvoices]);
@@ -100,19 +104,31 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{translations.adminPanel}</h1>
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mt-4 md:mt-0">
-                <button 
-                    onClick={() => setActiveTab('invoices')}
-                    className={`px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'invoices' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
-                >
-                    {translations.allInvoices}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('users')}
-                    className={`px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'users' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
-                >
-                    {translations.userManagement}
-                </button>
+            <div className="flex gap-2 flex-wrap items-center mt-4 md:mt-0">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setActiveTab('invoices')}
+                        className={`px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'invoices' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        {translations.allInvoices}
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('users')}
+                        className={`px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'users' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        {translations.userManagement}
+                    </button>
+                </div>
+                
+                {activeTab === 'users' && (
+                    <button 
+                        onClick={() => setIsAddUserModalOpen(true)}
+                        className="px-4 py-2 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-colors flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /></svg>
+                        {translations.addUser}
+                    </button>
+                )}
             </div>
         </div>
 
@@ -137,7 +153,7 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
                             onInvoiceDoubleClick={(invoice) => setInvoiceToView(invoice)} 
                             onDeleteClick={handleDeleteInvoice} 
                             onViewClick={handleViewInvoiceFile} 
-                            onTogglePaymentStatus={() => {}} // Read only status for admin? or allow edit? Assuming just view for now
+                            onTogglePaymentStatus={() => {}} 
                             columnVisibility={{}}
                             selectedInvoiceIds={selectedInvoiceIds}
                             onSelectionChange={setSelectedInvoiceIds}
@@ -157,7 +173,7 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
                                     <th className="px-6 py-3 text-start text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.role}</th>
                                     <th className="px-6 py-3 text-start text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.joinedDate}</th>
                                     <th className="px-6 py-3 text-end text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.invoicesCount}</th>
-                                    <th className="px-6 py-3 text-end text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.totalSpent}</th>
+                                    <th className="px-6 py-3 text-end text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">{translations.totalAiCost}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
@@ -172,8 +188,8 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{new Date(profile.created_at).toLocaleDateString()}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-end text-slate-900 dark:text-white">{profile.total_invoices_count}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-end font-mono text-indigo-600 dark:text-indigo-400">
-                                            {new Intl.NumberFormat(lang === 'ar' ? 'ar-JO' : 'en-US', { style: 'currency', currency: currency }).format(profile.total_spent || 0)}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-end font-mono text-emerald-600 dark:text-emerald-400">
+                                            ${(profile.total_spent || 0).toFixed(6)}
                                         </td>
                                     </tr>
                                 ))}
@@ -184,7 +200,14 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ user, translations, currency,
             </div>
         )}
 
-        {/* Reusing Viewer Modals */}
+        {/* Modals */}
+        <AddUserModal 
+            isOpen={isAddUserModalOpen} 
+            onClose={() => setIsAddUserModalOpen(false)} 
+            onUserAdded={fetchData} 
+            translations={translations} 
+        />
+
         {invoiceToView && (
             <InvoiceDetailModal 
                 isOpen={!!invoiceToView} onClose={() => setInvoiceToView(null)} invoice={invoiceToView}

@@ -11,31 +11,26 @@ export default {
         sans: ['Inter', 'sans-serif'],
         arabic: ['Tajawal', 'sans-serif'],
       },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+        'float': 'float 6s ease-in-out infinite',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shine': 'shine 2s linear infinite',
+      },
       keyframes: {
-        'fade-in-up': {
-          '0%': { opacity: '0', transform: 'translateY(20px)' },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        'background-pan': {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
-        },
-        'float': {
+        float: {
           '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
+          '50%': { transform: 'translateY(-10px)' },
         },
-        'glow': {
-          '0%, 100%': { boxShadow: '0 0 10px -5px theme(colors.indigo.400)' },
-          '50%': { boxShadow: '0 0 20px 0px theme(colors.indigo.400)' },
+        shine: {
+          '0%': { backgroundPosition: '200% center' },
+          '100%': { backgroundPosition: '-200% center' },
         },
       },
-      animation: {
-        'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
-        'background-pan': 'background-pan 15s ease infinite',
-        'float': 'float 4s ease-in-out infinite',
-        'glow': 'glow 3s ease-in-out infinite',
-      }
     },
   },
   plugins: [],

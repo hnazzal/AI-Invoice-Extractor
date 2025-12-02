@@ -123,7 +123,11 @@ export const translations: AppTranslations = {
     role: 'Role',
     joinedDate: 'Joined Date',
     totalSpent: 'Total Spent (Invoices)',
+    totalAiCost: 'Total AI Cost',
     invoicesCount: 'Invoices Count',
+    addUser: 'Add New User',
+    createUser: 'Create User',
+    userCreatedSuccess: 'User created successfully!',
     
     // Camera
     capture: 'Capture',
@@ -310,7 +314,11 @@ export const translations: AppTranslations = {
     role: 'الصلاحية',
     joinedDate: 'تاريخ الانضمام',
     totalSpent: 'إجمالي المصاريف',
+    totalAiCost: 'إجمالي تكلفة الذكاء الاصطناعي',
     invoicesCount: 'عدد الفواتير',
+    addUser: 'إضافة مستخدم جديد',
+    createUser: 'إنشاء حساب',
+    userCreatedSuccess: 'تم إنشاء المستخدم بنجاح!',
 
     // Camera
     capture: 'التقاط',

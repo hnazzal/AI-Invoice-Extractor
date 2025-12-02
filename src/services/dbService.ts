@@ -56,6 +56,18 @@ export const signUpUser = async (email: string, password: string, companyName?: 
     });
 };
 
+// Explicit function for Admin usage (semantically clear, same underlying logic since REST is stateless for creation)
+export const createNewUser = async (email: string, password: string, companyName: string): Promise<any> => {
+    return apiFetch('/auth/v1/signup', {
+        method: 'POST',
+        body: JSON.stringify({ 
+            email, 
+            password,
+            data: { company_name: companyName } // Store company name in user metadata
+        }),
+    });
+};
+
 export const loginUser = async (email: string, password: string): Promise<User> => {
     const response = await apiFetch('/auth/v1/token?grant_type=password', {
         method: 'POST',
